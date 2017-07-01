@@ -68,13 +68,13 @@ getPmmlStringForExpr <- function(expr, tokens) {
         exprTokensWhoseParentIsTheCurrentExprAndAreFunctionArgs <- exprTokensWhoseParentIsTheCurrentExpr[-1, ]
 
         for(i in 1:nrow(exprTokensWhoseParentIsTheCurrentExprAndAreFunctionArgs)) {
-          functionArgsSymbolTokensPmmlString <- paste(functionArgsSymbolTokensPmmlString, getPmmlStringForExpr(exprTokensWhoseParentIsTheCurrentExprAndAreFunctionArgs[1, ], tokens))
+          functionArgsSymbolTokensPmmlString <- paste(functionArgsSymbolTokensPmmlString, getPmmlStringForExpr(exprTokensWhoseParentIsTheCurrentExprAndAreFunctionArgs[1, ], tokens), sep='')
         }
 
         return(getPmmlStringForSymbolFunctionCall(functionSymbolToken, functionArgsSymbolTokensPmmlString))
       } else {
         for(i in 1:nrow(exprTokensWhoseParentIsTheCurrentExpr)) {
-          pmmlStringForExprTokens <- paste(pmmlStringForExprTokens, getPmmlStringForExpr(exprTokensWhoseParentIsTheCurrentExpr[i, ], tokens))
+          pmmlStringForExprTokens <- paste(pmmlStringForExprTokens, getPmmlStringForExpr(exprTokensWhoseParentIsTheCurrentExpr[i, ], tokens), sep='')
         }
       }
     }
@@ -150,9 +150,9 @@ getPmmlStringFromRFile <- function(filePath) {
     tokensForCurrentParentIndex = tokens[1:nextZeroParentIndex, ]
 
     if(doesTokensHaveSourceFunctionCall(tokensForCurrentParentIndex) == FALSE) {
-      localTransformationString <- paste(localTransformationString, getDerivedFieldPmmlStringForTokens(tokensForCurrentParentIndex))
+      localTransformationString <- paste(localTransformationString, getDerivedFieldPmmlStringForTokens(tokensForCurrentParentIndex), sep='')
     } else {
-      localTransformationString <- paste(localTransformationString, getPmmlStringFromSouceFunctionCallTokens(tokensForCurrentParentIndex))
+      localTransformationString <- paste(localTransformationString, getPmmlStringFromSouceFunctionCallTokens(tokensForCurrentParentIndex), sep='')
     }
 
     if(nextZeroParentIndex == nrow(tokens)) {
