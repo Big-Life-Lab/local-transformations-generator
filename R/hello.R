@@ -1,4 +1,3 @@
-library('pryr')
 source(file.path(getwd(), 'R', './tokens.R'))
 source(file.path(getwd(), 'R', './token_to_pmml.R'))
 
