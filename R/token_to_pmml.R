@@ -36,6 +36,8 @@ getPmmlStringForLogicalOperator <- function(logicalToken, nestedPmmlString) {
     functionType <- 'greaterThan'
   } else if(logicalTokenToken == GREATER_THAN_OR_EQUAL_TO_TOKEN) {
     functionType <- 'greaterOrEqual'
+  } else if(logicalTokenToken == NOT_TOKEN) {
+    functionType <- 'not'
   } else {
     stop(glue::glue('Unknown functionType for logical operator {logicalToken}'))
   }

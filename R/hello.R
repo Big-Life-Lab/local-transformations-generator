@@ -142,6 +142,7 @@ getPmmlStringFromSouceFunctionCallTokens <- function(sourceFunctionCallTokens) {
 
 getPmmlStringFromRFile <- function(filePath) {
   tokens = getParseData(parse(file = filePath))
+  print(tokens)
   nextZeroParentIndex = getIndexOfNextZeroParent(tokens)
 
   localTransformationString <- ''
