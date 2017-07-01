@@ -1,5 +1,2 @@
-if(is.na(age)) {
-  Age_xc <- 1
-} else {
-  Age_xc <- 2
-}
+source(file.path(getwd(), 'R', './test_source.R'))
+

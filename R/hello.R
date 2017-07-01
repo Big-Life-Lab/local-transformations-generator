@@ -1,20 +1,6 @@
-# Hello, world!
-#
-# This is an example function named 'hello'
-# which prints 'Hello, world!'.
-#
-# You can learn more about package authoring with RStudio at:
-#
-#   http://r-pkgs.had.co.nz/
-#
-# Some useful keyboard shortcuts for package authoring:
-#
-#   Build and Reload Package:  'Cmd + Shift + B'
-#   Check Package:             'Cmd + Shift + E'
-#   Test Package:              'Cmd + Shift + T'
-
 library('pryr')
 source(file.path(getwd(), 'R', './tokens.R'))
+source(file.path(getwd(), 'R', './token_to_pmml.R'))
 
 getDerivedFieldNameForTokens <- function(tokens) {
   symbols <- getSymbolsInTokens(tokens)
@@ -37,41 +23,6 @@ getDerivedFieldNameForTokens <- function(tokens) {
   }
 
   return(derivedFieldName)
-}
-
-getPmmlStringForSymbol <- function(symbol) {
-  fieldRefName <- symbol$text
-
-  return(glue::glue('<FieldRef field="{fieldRefName}"/>'))
-}
-
-getPmmlStringForConstant <- function(constant) {
-  dataType <- 'double'
-  value <- constant$text
-
-  if(typeof(constant) == 'character') {
-    dataType <- 'string'
-  }
-
-  return(glue::glue('<Constant dataType="{dataType}">{value}</Constant>'))
-}
-
-getPmmlStringForLogicalOperator <- function(logicalToken, nestedPmmlString) {
-  functionType <- 'equal'
-
-  return(glue::glue('<Apply function="{functionType}">{nestedPmmlString}</Apply>'))
-}
-
-getPmmlStringForMathToken <- function(mathToken, nestedPmmlString) {
-  functionType <- gsub("'", "", mathToken$token)
-
-  return(glue::glue('<Apply function="{functionType}">{nestedPmmlString}</Apply>'))
-}
-
-getPmmlStringForSymbolFunctionCall <- function(symbolFunctionCallToken, nestedPmmlString) {
-  functionType <- symbolFunctionCallToken$text
-
-  return(glue::glue('<Apply function="{functionType}">{nestedPmmlString}</Apply>'))
 }
 
 getPmmlStringForIfToken <- function(conditionExpr, trueResultExpr, falseResultExpr, tokens) {
@@ -182,15 +133,28 @@ getIndexOfNextZeroParent <- function(parseData) {
   return(nrow(parseData))
 }
 
+getPmmlStringFromSouceFunctionCallTokens <- function(sourceFunctionCallTokens) {
+  sourceFunctionCallArgExprToken <- getTokensWithParent(sourceFunctionCallTokens[1, ]$id, sourceFunctionCallTokens)[3, ]
+  sourceFunctionCallArgCodeString <- getParseText(sourceFunctionCallTokens, sourceFunctionCallArgExprToken$id)
+  sourceFilePath <- eval(parse(text=sourceFunctionCallArgCodeString))
+
+  return(getPmmlStringFromRFile(sourceFilePath))
+}
+
 getPmmlStringFromRFile <- function(filePath) {
   tokens = getParseData(parse(file = filePath))
-  print(tokens)
   nextZeroParentIndex = getIndexOfNextZeroParent(tokens)
 
   localTransformationString <- ''
 
   while(nextZeroParentIndex != 0) {
-    localTransformationString <- paste(localTransformationString, getDerivedFieldPmmlStringForTokens(tokens[0:nextZeroParentIndex+1, ]))
+    tokensForCurrentParentIndex = tokens[1:nextZeroParentIndex, ]
+
+    if(doesTokensHaveSourceFunctionCall(tokensForCurrentParentIndex) == FALSE) {
+      localTransformationString <- paste(localTransformationString, getDerivedFieldPmmlStringForTokens(tokensForCurrentParentIndex))
+    } else {
+      localTransformationString <- paste(localTransformationString, getPmmlStringFromSouceFunctionCallTokens(tokensForCurrentParentIndex))
+    }
 
     if(nextZeroParentIndex == nrow(tokens)) {
       break
@@ -204,4 +168,8 @@ getPmmlStringFromRFile <- function(filePath) {
   return(localTransformationString)
 }
 
-cat(getPmmlStringFromRFile(file.path(getwd(), 'R', 'test_math.R')), file="out.xml")
+outDirPath <- file.path(getwd(), 'out')
+if(dir.exists(outDirPath) == FALSE) {
+  dir.create(outDirPath)
+}
+cat(getPmmlStringFromRFile(file.path(getwd(), 'R', 'test_math.R')), file=paste(outDirPath, '/out.xml', sep=''))
