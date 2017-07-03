@@ -140,9 +140,8 @@ getPmmlStringFromSouceFunctionCallTokens <- function(sourceFunctionCallTokens) {
   return(getPmmlStringFromRFile(sourceFilePath))
 }
 
-getPmmlStringFromRFile <- function(filePath) {
+getPmmlStringFromRFile <- function(filePath, srcFile=FALSE) {
   tokens = getParseData(parse(file = filePath))
-  print(tokens)
   nextZeroParentIndex = getIndexOfNextZeroParent(tokens)
 
   localTransformationString <- ''
@@ -165,11 +164,9 @@ getPmmlStringFromRFile <- function(filePath) {
     nextZeroParentIndex = getIndexOfNextZeroParent(tokens)
   }
 
-  return(localTransformationString)
+  if(srcFile == TRUE) {
+    return(paste('<LocalTransformations>', localTransformationString, '</LocalTransformations>'))
+  } else {
+    return(localTransformationString)
+  }
 }
-
-outDirPath <- file.path(getwd(), 'out')
-if(dir.exists(outDirPath) == FALSE) {
-  dir.create(outDirPath)
-}
-cat(getPmmlStringFromRFile(file.path(getwd(), 'R', 'test_math.R')), file=paste(outDirPath, '/out.xml', sep=''))
