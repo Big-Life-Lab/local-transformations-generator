@@ -58,7 +58,6 @@ getPmmlStringForExpr <- function(expr, tokens) {
   } else {
     exprTokensWhoseParentIsTheCurrentExpr = getExprTokens(tokensWhoseParentIsTheCurrentExpr)
     nonExprTokensWhoseParentIsTheCurrentExpr = filterOutExprTokens(tokensWhoseParentIsTheCurrentExpr)
-
     pmmlStringForExprTokens <- ''
 
     if(nrow(exprTokensWhoseParentIsTheCurrentExpr) != 0) {
@@ -66,9 +65,8 @@ getPmmlStringForExpr <- function(expr, tokens) {
         functionArgsSymbolTokensPmmlString <- ''
         functionSymbolToken <- getTokensWithParent(exprTokensWhoseParentIsTheCurrentExpr[1, 'id'], tokens)[1, ]
         exprTokensWhoseParentIsTheCurrentExprAndAreFunctionArgs <- exprTokensWhoseParentIsTheCurrentExpr[-1, ]
-
         for(i in 1:nrow(exprTokensWhoseParentIsTheCurrentExprAndAreFunctionArgs)) {
-          functionArgsSymbolTokensPmmlString <- paste(functionArgsSymbolTokensPmmlString, getPmmlStringForExpr(exprTokensWhoseParentIsTheCurrentExprAndAreFunctionArgs[1, ], tokens), sep='')
+          functionArgsSymbolTokensPmmlString <- paste(functionArgsSymbolTokensPmmlString, getPmmlStringForExpr(exprTokensWhoseParentIsTheCurrentExprAndAreFunctionArgs[i, ], tokens), sep='')
         }
 
         return(getPmmlStringForSymbolFunctionCall(functionSymbolToken, functionArgsSymbolTokensPmmlString))
@@ -88,7 +86,7 @@ getPmmlStringForExpr <- function(expr, tokens) {
 
     if(nonExprTokenToken == SYMBOL_TOKEN) {
       return(getPmmlStringForSymbol(nonExprToken))
-    } else if(nonExprTokenToken == NUM_CONST_TOKEN) {
+    } else if(nonExprTokenToken == NUM_CONST_TOKEN || nonExprTokenToken == STR_CONST_TOKEN) {
       return(getPmmlStringForConstant(nonExprToken))
     } else if(nonExprTokenToken %in% MATH_TOKENS) {
       return(getPmmlStringForMathToken(nonExprToken, pmmlStringForExprTokens))
@@ -115,6 +113,7 @@ getDerivedFieldPmmlStringForTokens <- function(tokens) {
   return(glue::glue('<DerivedField name="{derivedFieldName}">{transformationPmmlString}</DerivedField>'))
 }
 
+# Get the index of the not the first but the second row in the parseData array which has the parent field set to 0
 getIndexOfNextZeroParent <- function(parseData) {
   numZeroParents = 0
 

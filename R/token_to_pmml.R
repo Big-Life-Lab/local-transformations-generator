@@ -1,3 +1,5 @@
+source(file.path(getwd(), 'R', './tokens.R'))
+
 getPmmlStringForSymbol <- function(symbol) {
   fieldRefName <- symbol$text
 
@@ -12,7 +14,11 @@ getPmmlStringForConstant <- function(constant) {
     dataType <- 'string'
   }
 
-  return(glue::glue('<Constant dataType="{dataType}">{value}</Constant>'))
+  formattedValue <- value
+  if(constant$token == STR_CONST_TOKEN) {
+    formattedValue <- gsub("'", "", value);
+  }
+  return(glue::glue('<Constant dataType="{dataType}">{formattedValue}</Constant>'))
 }
 
 getPmmlStringForLogicalOperator <- function(logicalToken, nestedPmmlString) {
