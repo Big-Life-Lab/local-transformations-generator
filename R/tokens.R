@@ -22,6 +22,8 @@ SYMBOL_FUNCTION_CALL_TOKEN <- 'SYMBOL_FUNCTION_CALL'
 FUNCTION_TOKEN <- 'FUNCTION'
 SYMBOL_FORMALS_TOKEN <- 'SYMBOL_FORMALS'
 
+SPECIAL_TOKEN <- 'SPECIAL'
+
 getExprWithIdInTokens <- function(id, tokens) {
   return(tokens[which(tokens$token==EXPR_TOKEN & tokens$id == id), ])
 }
@@ -48,6 +50,10 @@ getFunctionTokens <- function(tokens) {
 
 getChildTokensForParent <- function(parent, tokens) {
   return(tokens[which(tokens$parent == parent$id), ])
+}
+
+getSpecialTokens <- function(tokens) {
+  return(tokens[which(tokens$token == SPECIAL_TOKEN), ])
 }
 
 #Returns the token which is the parent of the child token argument

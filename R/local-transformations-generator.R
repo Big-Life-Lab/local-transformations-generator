@@ -48,7 +48,20 @@ getPmmlStringForExpr <- function(expr, tokens) {
   tokensWhoseParentIsTheCurrentExpr = getTokensWithParent(expr$id, tokens)
   tokensWhoseParentIsTheCurrentExprHasOneRow <- (nrow(tokensWhoseParentIsTheCurrentExpr) != 0)
 
-  if(tokensWhoseParentIsTheCurrentExprHasOneRow & tokensWhoseParentIsTheCurrentExpr[1, ]$token == IF_TOKEN) {
+  childSpecialTokensForCurrentExpr <- getSpecialTokens(getChildTokensForParent(expr, tokens))
+  if(nrow(childSpecialTokensForCurrentExpr) != 0) {
+    if(childSpecialTokensForCurrentExpr[1, 'text'] == '%in%') {
+      childExprTokens <- getExprTokens(getChildTokensForParent(expr, tokens))
+      leftExprTokenPmmlString <- getPmmlStringForExpr(childExprTokens[1, ], tokens)
+      rightExprTokenPmmlString <- getPmmlStringForExpr(childExprTokens[2, ], tokens)
+
+      return(glue::glue('<Apply function="isIn">{leftExprTokenPmmlString}{rightExprTokenPmmlString}</Apply>'))
+    }
+    else {
+      stop(glue::glue('Unhandled special symbol {childSpecialTokensForCurrentExpr[1, "text"]}'))
+    }
+  }
+  else if(tokensWhoseParentIsTheCurrentExprHasOneRow & tokensWhoseParentIsTheCurrentExpr[1, ]$token == IF_TOKEN) {
     conditionExpr <- tokensWhoseParentIsTheCurrentExpr[3, ]
     trueResultExpr <- tokensWhoseParentIsTheCurrentExpr[5, ]
     falseResultExpr <- tokensWhoseParentIsTheCurrentExpr[7, ]
@@ -61,14 +74,19 @@ getPmmlStringForExpr <- function(expr, tokens) {
 
     if(nrow(exprTokensWhoseParentIsTheCurrentExpr) != 0) {
       if(isSymbolFunctionCallExpr(expr, tokens)) {
-        functionArgsSymbolTokensPmmlString <- ''
         functionSymbolToken <- getTokensWithParent(exprTokensWhoseParentIsTheCurrentExpr[1, 'id'], tokens)[1, ]
         exprTokensWhoseParentIsTheCurrentExprAndAreFunctionArgs <- exprTokensWhoseParentIsTheCurrentExpr[-1, ]
+        functionArgsSymbolTokensPmmlString <- ''
         for(i in 1:nrow(exprTokensWhoseParentIsTheCurrentExprAndAreFunctionArgs)) {
           functionArgsSymbolTokensPmmlString <- paste(functionArgsSymbolTokensPmmlString, getPmmlStringForExpr(exprTokensWhoseParentIsTheCurrentExprAndAreFunctionArgs[i, ], tokens), sep='')
         }
 
-        return(getPmmlStringForSymbolFunctionCall(functionSymbolToken, functionArgsSymbolTokensPmmlString))
+        # Handle c functions by taking the arguments to the functions and concating the pmml string for each argument
+        if(functionSymbolToken$text == 'c') {
+          return(functionArgsSymbolTokensPmmlString)
+        } else {
+          return(getPmmlStringForSymbolFunctionCall(functionSymbolToken, functionArgsSymbolTokensPmmlString))
+        }
       } else {
         for(i in 1:nrow(exprTokensWhoseParentIsTheCurrentExpr)) {
           pmmlStringForExprTokens <- paste(pmmlStringForExprTokens, getPmmlStringForExpr(exprTokensWhoseParentIsTheCurrentExpr[i, ], tokens), sep='')
