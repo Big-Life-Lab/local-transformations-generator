@@ -62,3 +62,23 @@ getPmmlStringForSymbolFunctionCall <- function(symbolFunctionCallToken, nestedPm
 
   return(glue::glue('<Apply function="{functionType}">{nestedPmmlString}</Apply>'))
 }
+
+getPmmlStringForFunctionArgTokens <- function(functionArgTokens) {
+  if(nrow(functionArgTokens) == 0) {
+    return('')
+  }
+
+  parametersPmmlStringForFunction <- ''
+  for(i in 1:nrow(functionArgTokens)) {
+    currentArgName <- functionArgTokens[i ,'text']
+    parameterPmmlStringForCurrentArgToken <- glue::glue('<ParameterField name="{currentArgName}" dataType="double"/>')
+    parametersPmmlStringForFunction <- paste(parametersPmmlStringForFunction, parameterPmmlStringForCurrentArgToken)
+  }
+
+  return(parametersPmmlStringForFunction)
+}
+
+getPmmlStringForDefineFunction <- function(functionName, functionArgsTokens, functionBodyPmmlString) {
+  return(glue::glue('<DefineFunction name="{functionName}">{getPmmlStringForFunctionArgTokens(functionArgsTokens)}{functionBodyPmmlString}</DefineFunction>'))
+}
+
