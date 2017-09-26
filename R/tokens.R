@@ -24,6 +24,8 @@ SYMBOL_FORMALS_TOKEN <- 'SYMBOL_FORMALS'
 
 SPECIAL_TOKEN <- 'SPECIAL'
 
+COMMENT_TOKEN <- 'COMMENT'
+
 getExprWithIdInTokens <- function(id, tokens) {
   return(tokens[which(tokens$token==EXPR_TOKEN & tokens$id == id), ])
 }
@@ -123,6 +125,10 @@ getExprTokens <- function(tokens) {
 
 filterOutExprTokens <- function(tokens) {
   return(tokens[which(tokens$token != EXPR_TOKEN), ])
+}
+
+filterOutCommentTokens <- function(tokens) {
+  return(tokens[which(tokens$token != COMMENT_TOKEN), ])
 }
 
 getSymbolFunctionCallsWithText <- function(text, tokens) {
