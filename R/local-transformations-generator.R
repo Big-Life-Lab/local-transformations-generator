@@ -21,6 +21,7 @@ getDerivedFieldNameOrFunctionNameForTokens <- function(tokens) {
     stop('derivedFieldName or functionName is unkown')
   }
 
+  print(derivedFieldNameOrFunctionName)
   return(derivedFieldNameOrFunctionName)
 }
 
@@ -78,7 +79,11 @@ getPmmlStringForExpr <- function(expr, tokens) {
         exprTokensWhoseParentIsTheCurrentExprAndAreFunctionArgs <- exprTokensWhoseParentIsTheCurrentExpr[-1, ]
         functionArgsSymbolTokensPmmlString <- ''
         for(i in 1:nrow(exprTokensWhoseParentIsTheCurrentExprAndAreFunctionArgs)) {
-          functionArgsSymbolTokensPmmlString <- paste(functionArgsSymbolTokensPmmlString, getPmmlStringForExpr(exprTokensWhoseParentIsTheCurrentExprAndAreFunctionArgs[i, ], tokens), sep='')
+          functionArgsSymbolTokensPmmlString <- paste(
+            functionArgsSymbolTokensPmmlString,
+            getPmmlStringForExpr(exprTokensWhoseParentIsTheCurrentExprAndAreFunctionArgs[i, ], tokens),
+            sep=''
+          )
         }
 
         # Handle c functions by taking the arguments to the functions and concating the pmml string for each argument
@@ -89,7 +94,11 @@ getPmmlStringForExpr <- function(expr, tokens) {
         }
       } else {
         for(i in 1:nrow(exprTokensWhoseParentIsTheCurrentExpr)) {
-          pmmlStringForExprTokens <- paste(pmmlStringForExprTokens, getPmmlStringForExpr(exprTokensWhoseParentIsTheCurrentExpr[i, ], tokens), sep='')
+          pmmlStringForExprTokens <- paste(
+            pmmlStringForExprTokens,
+            getPmmlStringForExpr(exprTokensWhoseParentIsTheCurrentExpr[i, ], tokens),
+            sep=''
+          )
         }
       }
     }
@@ -127,7 +136,7 @@ getDerivedFieldPmmlStringForTokens <- function(tokens) {
   }
 
   transformationPmmlString <- getPmmlStringForExpr(tokensToConvertToDerivedFieldPmml[1, ], tokensToConvertToDerivedFieldPmml)
-  return(glue::glue('<DerivedField name="{derivedFieldName}">{transformationPmmlString}</DerivedField>'))
+  return(glue::glue('<DerivedField name="{derivedFieldName}" optype="continuous">{transformationPmmlString}</DerivedField>'))
 }
 
 getRArgumentsIntoFunctionString <- function(originalFunctionArgTokens) {
@@ -183,7 +192,7 @@ getDefineFunctionPmmlStringForTokens <- function(tokens) {
       returnArgExprToken <- getExprTokens(getChildTokensForParent(topLevelFunctionBodyExprTokens[i, ], tokens))[2, ]
 
       #Convert the expression to it's PMML string
-      pmmlStringForReturnArgExprToken <- getPmmlStringForExpr(returnArgExprToken, tokens)
+      pmmlStringForReturnArgExprToken <- getPmmlStringForExpr(returnArgExprToken, getDescendantsOfToken(returnArgExprToken, tokens))
 
       #Find all the symbols used within the expression which are not part of the function arguments
       symbolsWithinReturnArgExprWhichAreNotFunctionArguments <- getSymbolsInTokens(getDescendantsOfToken(returnArgExprToken, tokens))
@@ -320,7 +329,7 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE) {
     if(doesTokensHaveSourceFunctionCall(tokensForCurrentParentIndex) == TRUE) {
       localTransformationString <- paste(localTransformationString, getPmmlStringFromSouceFunctionCallTokens(tokensForCurrentParentIndex), sep='')
     } else if(doesTokensHaveFunctionDefinition(tokensForCurrentParentIndex) == TRUE) {
-      localTransformationString <- paste(localTransformationString, getDefineFunctionPmmlStringForTokens(tokens), sep='')
+      localTransformationString <- paste(localTransformationString, getDefineFunctionPmmlStringForTokens(tokensForCurrentParentIndex), sep='')
     } else {
       localTransformationString <- paste(localTransformationString, getDerivedFieldPmmlStringForTokens(tokensForCurrentParentIndex), sep='')
     }
