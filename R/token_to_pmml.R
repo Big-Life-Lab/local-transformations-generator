@@ -29,7 +29,7 @@ getPmmlStringForLogicalOperator <- function(logicalToken, nestedPmmlString) {
 
   logicalTokenToken <- logicalToken$token
 
-  if(logicalTokenToken == AND_TOKEN) {
+  if(logicalTokenToken == AND_TOKEN | logicalTokenToken == AND2_TOKEN) {
     functionType <- 'and'
   } else if(logicalTokenToken == OR_TOKEN) {
     functionType <- 'or'
