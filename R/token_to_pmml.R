@@ -13,12 +13,14 @@ getPmmlStringForConstant <- function(constant) {
   formattedValue <- value
   if(constant$token == STR_CONST_TOKEN) {
     dataType <- 'string'
-    formattedValue <- gsub("'", "", value);
+    formattedValue <- gsub("'", "", value)
+    formattedValue <- gsub('"', "", value);
   }
   else if(constant$text == 'NA' & constant$token == NUM_CONST_TOKEN) {
     dataType <- 'NA'
     formattedValue <- 'NA'
   }
+
   return(glue::glue('<Constant dataType="{dataType}">{formattedValue}</Constant>'))
 }
 
