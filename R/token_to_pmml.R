@@ -14,7 +14,7 @@ getPmmlStringForConstant <- function(constant) {
   if(constant$token == STR_CONST_TOKEN) {
     dataType <- 'string'
     formattedValue <- gsub("'", "", value)
-    formattedValue <- gsub('"', "", value);
+    formattedValue <- gsub('"', "", formattedValue)
   }
   else if(constant$text == 'NA' & constant$token == NUM_CONST_TOKEN) {
     dataType <- 'NA'
