@@ -6,4 +6,4 @@ if(dir.exists(outDirPath) == FALSE) {
 }
 # file.path(getwd(), 'Transformation Creation Files', 'MPoRT Male Transformations.R')
 # file.path(getwd(), 'R', 'test-R-files', 'test-function.R')
-cat(getPmmlStringFromRFile(file.path(getwd(), 'Transformation Creation Files', 'MPoRT Male Transformations.R'), TRUE), file=paste(outDirPath, '/out.xml', sep=''))
+cat(getPmmlStringFromRFile(file.path(getwd(), 'R', 'test-R-files', 'test-table.R'), TRUE), file=paste(outDirPath, '/out.xml', sep=''))

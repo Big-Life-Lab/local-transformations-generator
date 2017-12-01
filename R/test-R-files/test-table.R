@@ -1,0 +1,1 @@
+TableData <- read.csv(file.path(getwd(), 'R/test-R-files/table.csv'))

@@ -47,6 +47,10 @@ getTokenWithId <- function(id, tokens) {
   return(tokens[which(tokens$id == id), ])
 }
 
+getTokensWithText <- function(text, tokens) {
+  return(tokens[which(tokens$text == text), ])
+}
+
 getFunctionTokens <- function(tokens) {
   return(tokens[which(tokens$token == FUNCTION_TOKEN), ])
 }
@@ -151,6 +155,10 @@ doesTokensHaveALeftAssign <- function(tokens) {
 
 doesTokensHaveSourceFunctionCall <- function(tokens) {
   return(nrow(getSymbolFunctionCallsWithText('source', tokens)) == 1)
+}
+
+doesTokensHaveReadCsvFunctionCall <- function(tokens) {
+  return(nrow(getSymbolFunctionCallsWithText('read.csv', tokens)) == 1)
 }
 
 doesTokensHaveFunctionDefinition <- function(tokens) {

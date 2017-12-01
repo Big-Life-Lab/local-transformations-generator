@@ -74,6 +74,7 @@ getPmmlStringForExpr <- function(expr, tokens) {
     pmmlStringForExprTokens <- ''
 
     if(nrow(exprTokensWhoseParentIsTheCurrentExpr) != 0) {
+      # If this expression has a function call in it
       if(isSymbolFunctionCallExpr(expr, tokens)) {
         functionSymbolToken <- getTokensWithParent(exprTokensWhoseParentIsTheCurrentExpr[1, 'id'], tokens)[1, ]
         exprTokensWhoseParentIsTheCurrentExprAndAreFunctionArgs <- exprTokensWhoseParentIsTheCurrentExpr[-1, ]
@@ -89,6 +90,9 @@ getPmmlStringForExpr <- function(expr, tokens) {
         # Handle c functions by taking the arguments to the functions and concating the pmml string for each argument
         if(functionSymbolToken$text == 'c') {
           return(functionArgsSymbolTokensPmmlString)
+        } # If read.csv function call. Do nothing since we handle converting csv files to PMML tables at the beginning
+        else if(functionSymbolToken$text == 'read.csv') {
+          
         } else {
           return(getPmmlStringForSymbolFunctionCall(functionSymbolToken, functionArgsSymbolTokensPmmlString))
         }
@@ -315,6 +319,47 @@ getPmmlStringFromSouceFunctionCallTokens <- function(sourceFunctionCallTokens) {
   return(getPmmlStringFromRFile(sourceFilePath))
 }
 
+getTablePmmlStringsForReadCsvFunctionCall <- function(tokens) {
+  # Get the name of the variable to which the table contents have been assigned
+  variableAssignedToTable <- getDerivedFieldNameOrFunctionNameForTokens(tokens)
+  
+  # Get id of the expression which is the parent of the entire read csv function call
+  idOfExprWhichHasFunctionCall <- tokens[5, ]
+  # Get the expression which is the parent of the argument that goes into the read csv funtion call
+  exprWithArgumentToReadCsvFunctionCall <- getChildTokensForParent(idOfExprWhichHasFunctionCall, tokens)[3, ]
+  # Get the R code as a string for the argument to the read.csv function call
+  readCsvFilePathCodeString <- getParseText(tokens, exprWithArgumentToReadCsvFunctionCall$id)
+  # Evaluate the code string to get the path to the table
+  csvFilePath <- eval(parse(text=readCsvFilePathCodeString))
+  
+  # get the csv file as a dataframe
+  table <- read.csv(csvFilePath)
+  
+  # This is where we will store the entire InlineTable xml element
+  pmmlTableString <- ''
+  
+  # Go through all the rows of the table
+  for(i in 1:nrow(table)) {
+    # For each row add a <row> opening tag
+    pmmlTableString <- glue::glue('{pmmlTableString}<row>')
+    
+    # Go through the columns of the row
+    for(j in 1:ncol(table)) {
+      # For each column add <colname>Value of the column in this row</colname>
+      pmmlTableString <- glue::glue('{pmmlTableString}<{colnames(table)[j]}>{table[i,j]}</{colnames(table)[j]}>')
+    }
+    
+    # End of this row so add a closing row xml tag
+    pmmlTableString <- glue::glue("{pmmlTableString}</row>")
+  }
+  
+  # The final table string
+  pmmlTableString <- glue::glue('<Taxonomy name="{variableAssignedToTable}"><InlineTable>{pmmlTableString}</InlineTable></Taxonomy>')
+
+  # Return the string along with the variable to which the table data was assigned
+  return(list(pmmlTableString, variableAssignedToTable))
+}
+
 getPmmlStringFromRFile <- function(filePath, srcFile=FALSE) {
   tokensWithComments = getParseData(parse(file = filePath))
   tokens <- filterOutCommentTokens(tokensWithComments)
@@ -322,13 +367,25 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE) {
   nextZeroParentIndex = getIndexOfNextZeroParent(tokens)
 
   localTransformationString <- ''
-
+  
+  # Each line of code is consists of several tokens but they all start with  an expr token whose parent is 0. This is how we know that we have reached a new line of code
   while(nextZeroParentIndex != 0) {
     tokensForCurrentParentIndex = tokens[1:nextZeroParentIndex, ]
-
+    print(tokensForCurrentParentIndex);
+    
     if(doesTokensHaveSourceFunctionCall(tokensForCurrentParentIndex) == TRUE) {
       localTransformationString <- paste(localTransformationString, getPmmlStringFromSouceFunctionCallTokens(tokensForCurrentParentIndex), sep='')
-    } else if(doesTokensHaveFunctionDefinition(tokensForCurrentParentIndex) == TRUE) {
+    } 
+    # If this a read csv function call then we have to convert the imported csv file into a PMML table string
+    else if(doesTokensHaveReadCsvFunctionCall(tokens) == TRUE) {
+       # The return value is a list with the pmml string and the name of the variable to which the table was assigned
+       returnValues <- getTablePmmlStringsForReadCsvFunctionCall(tokens)
+       
+       # Add the pmml table string to the localtransformations string
+       localTransformationString <- paste(localTransformationString,returnValues[1])
+       print(returnValues[2])
+    }
+    else if(doesTokensHaveFunctionDefinition(tokensForCurrentParentIndex) == TRUE) {
       localTransformationString <- paste(localTransformationString, getDefineFunctionPmmlStringForTokens(tokensForCurrentParentIndex), sep='')
     } else {
       localTransformationString <- paste(localTransformationString, getDerivedFieldPmmlStringForTokens(tokensForCurrentParentIndex), sep='')
