@@ -27,6 +27,10 @@ SPECIAL_TOKEN <- 'SPECIAL'
 
 COMMENT_TOKEN <- 'COMMENT'
 
+isSymbolToken <- function(token) {
+  return(token$token == SYMBOL_TOKEN)  
+}
+
 getExprWithIdInTokens <- function(id, tokens) {
   return(tokens[which(tokens$token==EXPR_TOKEN & tokens$id == id), ])
 }

@@ -62,6 +62,58 @@ getPmmlStringForExpr <- function(expr, tokens) {
       stop(glue::glue('Unhandled special symbol {childSpecialTokensForCurrentExpr[1, "text"]}'))
     }
   }
+  # This means this expression has table access expression
+  else if(!is.na(tokensWhoseParentIsTheCurrentExpr[2, ]$token) & tokensWhoseParentIsTheCurrentExpr[2, ]$token == "'$'") {
+    # Get the name of the column in the table which is the output column for this table access
+    outputColumnName <- tokensWhoseParentIsTheCurrentExpr[3, 'text']
+    
+    # Get the expression tokens which has the code for getting the row for table from which we will access the outputColumn
+    exprTokenWithTableAccessConditions <- tokensWhoseParentIsTheCurrentExpr[1, ]
+    # Get the child tokens of the above expr token
+    childsTokensForExprTokenWithTableAccessConditions <- getChildTokensForParent(exprTokenWithTableAccessConditions, tokens)
+    
+    # The first token in the above child tokens is an expressions which has the name of the table we want to search
+    exprTokenWithTableName <- childsTokensForExprTokenWithTableAccessConditions[1, ]
+    # Get the name of the table
+    tableName <- getChildTokensForParent(exprTokenWithTableName, tokens)[1, ]$text
+    
+    # Get the expr token which has the table search conditions like tableName$col == 'a' along with the AND between the conditions
+    exprTokenWithTableEntireSearchConditions <- childsTokensForExprTokenWithTableAccessConditions[3, ]
+    
+    # Get all the expression tokens which have just the table access serch conditions i.e. tableName$col == 'a'
+    exprTokensWithTableSearchConditions <- getExprTokens(getChildTokensForParent(exprTokenWithTableEntireSearchConditions, tokens))
+    
+    # This variable will have the pmml string for the FieldColumnPair
+    fieldColumnPairs <- ''
+    
+    # Go through all the expressions which have the FieldColumnPair information
+    for(i in 1:nrow(exprTokensWithTableSearchConditions)) {
+      # Get all the child tokens
+      childTokensForCurrentTableSearchCondition <- getChildTokensForParent(exprTokensWithTableSearchConditions[i, ], tokens)
+      
+      # The token of which the third one is a symbol token with the name of the column for this FieldColumnPair
+      tokensWithTableColumnForCurrentSearchConditon <- getChildTokensForParent(childTokensForCurrentTableSearchCondition[1, ], tokens)
+      # Get the token with the table column
+      tokenWithTableColumn <- tokensWithTableColumnForCurrentSearchConditon[3, ]
+      
+      # Get the token which represent what value the above colum shoiuld equal
+      tokenForSearchValue <- getChildTokensForParent(childTokensForCurrentTableSearchCondition[3, ], tokens)[1, ]
+      
+      # Convert tokenForSearchValue to it's pmml string. It could be a field or a constant
+      pmmlStringForSearchValueToken <- glue::glue('field="{tokenForSearchValue$text}"')
+      if(isSymbolToken(tokenForSearchValue) == FALSE) {
+        searchValueConstant = formatConstantTokenText(tokenForSearchValue)
+        print(searchValueConstant)
+        pmmlStringForSearchValueToken <- glue::glue('constant="{searchValueConstant}"')
+      }
+      
+      # Convert to a FieldColumnPair and add it to the master list of FieldColumnPair
+      fieldColumnPairs <- glue::glue('{fieldColumnPairs}<FieldColumnPair {pmmlStringForSearchValueToken} column="{tokenWithTableColumn$text}"/>')
+    }
+    
+    # Return the MapValues pmml string
+    return(glue::glue('<MapValues outputColumn="{outputColumnName}">{fieldColumnPairs}<TableLocator location="taxonomy" name="{tableName}"/></MapValues>'))
+  }
   else if(tokensWhoseParentIsTheCurrentExprHasOneRow & tokensWhoseParentIsTheCurrentExpr[1, ]$token == IF_TOKEN) {
     conditionExpr <- tokensWhoseParentIsTheCurrentExpr[3, ]
     trueResultExpr <- tokensWhoseParentIsTheCurrentExpr[5, ]

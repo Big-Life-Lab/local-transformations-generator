@@ -6,19 +6,29 @@ getPmmlStringForSymbol <- function(symbol) {
   return(glue::glue('<FieldRef field="{fieldRefName}"/>'))
 }
 
-getPmmlStringForConstant <- function(constant) {
-  dataType <- 'double'
-  value <- constant$text
-
-  formattedValue <- value
+formatConstantTokenText <- function(constant) {
+  formattedValue <- constant$text
   if(constant$token == STR_CONST_TOKEN) {
-    dataType <- 'string'
-    formattedValue <- gsub("'", "", value)
+    formattedValue <- gsub("'", "", constant$text)
     formattedValue <- gsub('"', "", formattedValue)
   }
   else if(constant$text == 'NA' & constant$token == NUM_CONST_TOKEN) {
-    dataType <- 'NA'
     formattedValue <- 'NA'
+  }
+  
+  return(formattedValue)
+}
+
+getPmmlStringForConstant <- function(constant) {
+  dataType <- 'double'
+
+  formattedValue <- formatConstantTokenText(constant)
+  
+  if(constant$token == STR_CONST_TOKEN) {
+    dataType <- 'string'
+  }
+  else if(constant$text == 'NA' & constant$token == NUM_CONST_TOKEN) {
+    dataType <- 'NA'
   }
 
   return(glue::glue('<Constant dataType="{dataType}">{formattedValue}</Constant>'))
