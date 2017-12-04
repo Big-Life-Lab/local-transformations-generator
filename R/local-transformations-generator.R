@@ -80,35 +80,28 @@ getPmmlStringForExpr <- function(expr, tokens) {
     # Get the expr token which has the table search conditions like tableName$col == 'a' along with the AND between the conditions
     exprTokenWithTableEntireSearchConditions <- childsTokensForExprTokenWithTableAccessConditions[3, ]
     
-    # Get all the expression tokens which have just the table access serch conditions i.e. tableName$col == 'a'
-    exprTokensWithTableSearchConditions <- getExprTokens(getChildTokensForParent(exprTokenWithTableEntireSearchConditions, tokens))
+    # Get the descendants of the expr token with table entires. It will have the information we need for the FieldColumnPairs
+    tokensToUseForFieldColumnPairStrings <- getDescendantsOfToken(exprTokenWithTableEntireSearchConditions, tokens)
     
-    # This variable will have the pmml string for the FieldColumnPair
+    # The string which at the end of the following loop will have all the FieldColumnPairs
     fieldColumnPairs <- ''
     
-    # Go through all the expressions which have the FieldColumnPair information
-    for(i in 1:nrow(exprTokensWithTableSearchConditions)) {
-      # Get all the child tokens
-      childTokensForCurrentTableSearchCondition <- getChildTokensForParent(exprTokensWithTableSearchConditions[i, ], tokens)
-      
-      # The token of which the third one is a symbol token with the name of the column for this FieldColumnPair
-      tokensWithTableColumnForCurrentSearchConditon <- getChildTokensForParent(childTokensForCurrentTableSearchCondition[1, ], tokens)
-      # Get the token with the table column
-      tokenWithTableColumn <- tokensWithTableColumnForCurrentSearchConditon[3, ]
-      
-      # Get the token which represent what value the above colum shoiuld equal
-      tokenForSearchValue <- getChildTokensForParent(childTokensForCurrentTableSearchCondition[3, ], tokens)[1, ]
-      
-      # Convert tokenForSearchValue to it's pmml string. It could be a field or a constant
-      pmmlStringForSearchValueToken <- glue::glue('field="{tokenForSearchValue$text}"')
-      if(isSymbolToken(tokenForSearchValue) == FALSE) {
-        searchValueConstant = formatConstantTokenText(tokenForSearchValue)
-        print(searchValueConstant)
-        pmmlStringForSearchValueToken <- glue::glue('constant="{searchValueConstant}"')
-      }
-      
-      # Convert to a FieldColumnPair and add it to the master list of FieldColumnPair
-      fieldColumnPairs <- glue::glue('{fieldColumnPairs}<FieldColumnPair {pmmlStringForSearchValueToken} column="{tokenWithTableColumn$text}"/>')
+    # Go though the descendants
+    for(i in 1:nrow(tokensToUseForFieldColumnPairStrings)) {
+      # If the token is op type $
+      if(tokensToUseForFieldColumnPairStrings[i, 'token'] == "'$'") {
+        # The token  after this is the column referenced in the table
+        column <- tokensToUseForFieldColumnPairStrings[i+1, ]
+        # The token 2 after this is the field or constant we need to compare the column to
+        fieldOrConstant <- tokensToUseForFieldColumnPairStrings[i+3, ]
+        
+        # Make the column pmml string
+        columnString <- glue::glue('column="{column$text}"')
+        # Make the field or constant pmml string
+        fieldOrConstantString <- ifelse(isSymbolToken(fieldOrConstant), glue::glue('field="{fieldOrConstant$text}"'), glue::glue('constant={formatConstantTokenText(fieldOrConstant)}'))
+        # Make the FieldColumnPair string and append it to the master list 
+        fieldColumnPairs <- paste(fieldColumnPairs, glue::glue('<FieldColumnPairs {columnString} {fieldOrConstantString}/>'))
+      } 
     }
     
     # Return the MapValues pmml string
