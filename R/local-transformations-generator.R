@@ -98,7 +98,7 @@ getPmmlStringForExpr <- function(expr, tokens) {
         # Make the column pmml string
         columnString <- glue::glue('column="{column$text}"')
         # Make the field or constant pmml string
-        fieldOrConstantString <- ifelse(isSymbolToken(fieldOrConstant), glue::glue('field="{fieldOrConstant$text}"'), glue::glue('constant={formatConstantTokenText(fieldOrConstant)}'))
+        fieldOrConstantString <- ifelse(isSymbolToken(fieldOrConstant), glue::glue('field="{fieldOrConstant$text}"'), glue::glue('constant="{formatConstantTokenText(fieldOrConstant)}"'))
         # Make the FieldColumnPair string and append it to the master list 
         fieldColumnPairs <- paste(fieldColumnPairs, glue::glue('<FieldColumnPairs {columnString} {fieldOrConstantString}/>'))
       } 
