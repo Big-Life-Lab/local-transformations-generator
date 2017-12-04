@@ -412,6 +412,7 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE) {
   nextZeroParentIndex = getIndexOfNextZeroParent(tokens)
 
   localTransformationString <- ''
+  taxonomy <- ''
   
   # Each line of code is consists of several tokens but they all start with  an expr token whose parent is 0. This is how we know that we have reached a new line of code
   while(nextZeroParentIndex != 0) {
@@ -426,8 +427,8 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE) {
        # The return value is a list with the pmml string and the name of the variable to which the table was assigned
        returnValues <- getTablePmmlStringsForReadCsvFunctionCall(tokens)
        
-       # Add the pmml table string to the localtransformations string
-       localTransformationString <- paste(localTransformationString,returnValues[1])
+       # Add the pmml table string to the taxonomy string
+       taxonomy <- paste(taxonomy,returnValues[1])
        print(returnValues[2])
     }
     else if(doesTokensHaveFunctionDefinition(tokensForCurrentParentIndex) == TRUE) {
@@ -446,7 +447,7 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE) {
   }
 
   if(srcFile == TRUE) {
-    return(paste('<LocalTransformations>', localTransformationString, '</LocalTransformations>'))
+    return(paste(taxonomy, '<LocalTransformations>', localTransformationString, '</LocalTransformations>'))
   } else {
     return(localTransformationString)
   }
