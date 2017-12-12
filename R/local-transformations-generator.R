@@ -239,39 +239,41 @@ getDefineFunctionPmmlStringForTokens <- function(tokens) {
     else {
       #Get the expression for the argument to the return function call
       returnArgExprToken <- getExprTokens(getChildTokensForParent(topLevelFunctionBodyExprTokens[i, ], tokens))[2, ]
-
+      
       #Convert the expression to it's PMML string
       pmmlStringForReturnArgExprToken <- getPmmlStringForExpr(returnArgExprToken, getDescendantsOfToken(returnArgExprToken, tokens))
-
+      
       #Find all the symbols used within the expression which are not part of the function arguments
       symbolsWithinReturnArgExprWhichAreNotFunctionArguments <- getSymbolsInTokens(getDescendantsOfToken(returnArgExprToken, tokens))
       symbolsWithinReturnArgExprWhichAreNotFunctionArguments <- subset(
         symbolsWithinReturnArgExprWhichAreNotFunctionArguments,
         !(symbolsWithinReturnArgExprWhichAreNotFunctionArguments$text %in% functionArgNameTokens$text)
       )
-
-      #1. Convert each symbol into R code which calls a function whose name is a combination of the symbol and original function name and whose arguments are the
-      # original function arguments and generate PMML code for it
-      #2. Replace each FieldRef within the above PMML string for each symbol with the generated PMML string for that function call R code
-      for(j in 1:nrow(symbolsWithinReturnArgExprWhichAreNotFunctionArguments)) {
-        # 1.
-        rFunctionNameForCurrentSymbol <- glue::glue('{functionName}_{symbolsWithinReturnArgExprWhichAreNotFunctionArguments[j, "text"]}')
-        rFunctionArgs <- getRArgumentsIntoFunctionString(functionArgNameTokens)
-        rCode <- glue::glue('{rFunctionNameForCurrentSymbol}({rFunctionArgs})')
-        tokensForRCode <- getParseData(parse(text = rCode))
-        pmmlStringForRCode <- getPmmlStringForExpr(tokensForRCode[1, ], tokensForRCode)
-        pmmlStringForRCode <- gsub(
-          rFunctionNameForCurrentSymbol,
-          getFunctionNameForInnerFunctionExprToken(functionName, symbolsWithinReturnArgExprWhichAreNotFunctionArguments[j, 'text']),
-          pmmlStringForRCode
-        )
-
-        # 2.
-        pmmlStringForReturnArgExprToken <- gsub(
-          glue::glue('<FieldRef field="{symbolsWithinReturnArgExprWhichAreNotFunctionArguments[j, ]$text}"/>'),
-          pmmlStringForRCode,
-          pmmlStringForReturnArgExprToken
-        )
+      
+      if(nrow(symbolsWithinReturnArgExprWhichAreNotFunctionArguments) != 0) {
+        #1. Convert each symbol into R code which calls a function whose name is a combination of the symbol and original function name and whose arguments are the
+        # original function arguments and generate PMML code for it
+        #2. Replace each FieldRef within the above PMML string for each symbol with the generated PMML string for that function call R code
+        for(j in 1:nrow(symbolsWithinReturnArgExprWhichAreNotFunctionArguments)) {
+          # 1.
+          rFunctionNameForCurrentSymbol <- glue::glue('{functionName}_{symbolsWithinReturnArgExprWhichAreNotFunctionArguments[j, "text"]}')
+          rFunctionArgs <- getRArgumentsIntoFunctionString(functionArgNameTokens)
+          rCode <- glue::glue('{rFunctionNameForCurrentSymbol}({rFunctionArgs})')
+          tokensForRCode <- getParseData(parse(text = rCode))
+          pmmlStringForRCode <- getPmmlStringForExpr(tokensForRCode[1, ], tokensForRCode)
+          pmmlStringForRCode <- gsub(
+            rFunctionNameForCurrentSymbol,
+            getFunctionNameForInnerFunctionExprToken(functionName, symbolsWithinReturnArgExprWhichAreNotFunctionArguments[j, 'text']),
+            pmmlStringForRCode
+          )
+  
+          # 2.
+          pmmlStringForReturnArgExprToken <- gsub(
+            glue::glue('<FieldRef field="{symbolsWithinReturnArgExprWhichAreNotFunctionArguments[j, ]$text}"/>'),
+            pmmlStringForRCode,
+            pmmlStringForReturnArgExprToken
+          )
+        }
       }
 
       #Make the DefineFunction PMML string
@@ -281,7 +283,7 @@ getDefineFunctionPmmlStringForTokens <- function(tokens) {
       pmmlFunctionString <- paste(pmmlFunctionString, pmmlDefineFunctionString, sep='')
     }
   }
-
+  
   return(pmmlFunctionString)
 }
 
@@ -417,7 +419,7 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE) {
   # Each line of code is consists of several tokens but they all start with  an expr token whose parent is 0. This is how we know that we have reached a new line of code
   while(nextZeroParentIndex != 0) {
     tokensForCurrentParentIndex = tokens[1:nextZeroParentIndex, ]
-    print(tokensForCurrentParentIndex);
+    #print(tokensForCurrentParentIndex);
     
     if(doesTokensHaveSourceFunctionCall(tokensForCurrentParentIndex) == TRUE) {
       localTransformationString <- paste(localTransformationString, getPmmlStringFromSouceFunctionCallTokens(tokensForCurrentParentIndex), sep='')
