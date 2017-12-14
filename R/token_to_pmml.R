@@ -1,5 +1,9 @@
 source(file.path(getwd(), 'R', './tokens.R'))
 
+isBooleanDataType <- function(token) {
+  return((token$text == 'TRUE' | token$text == 'FALSE') & token$token == NUM_CONST_TOKEN)
+}
+
 getPmmlStringForSymbol <- function(symbol) {
   fieldRefName <- symbol$text
 
@@ -15,6 +19,9 @@ formatConstantTokenText <- function(constant) {
   else if(constant$text == 'NA' & constant$token == NUM_CONST_TOKEN) {
     formattedValue <- 'NA'
   }
+  else if(isBooleanDataType(constant)) {
+    formattedValue <- tolower(constant$text)
+  }
   
   return(formattedValue)
 }
@@ -29,6 +36,9 @@ getPmmlStringForConstant <- function(constant) {
   }
   else if(constant$text == 'NA' & constant$token == NUM_CONST_TOKEN) {
     dataType <- 'NA'
+  } 
+  else if(isBooleanDataType(constant)) {
+    dataType <- 'boolean'
   }
 
   return(glue::glue('<Constant dataType="{dataType}">{formattedValue}</Constant>'))
