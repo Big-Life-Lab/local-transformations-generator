@@ -255,7 +255,6 @@ getDefineFunctionPmmlStringForTokens <- function(tokens) {
       
       #Convert the expression to it's PMML string
       pmmlStringForReturnArgExprToken <- getPmmlStringForExpr(returnArgExprToken, getDescendantsOfToken(returnArgExprToken, tokens))
-      print(pmmlStringForReturnArgExprToken)
       
       #Find all the symbols used within the expression which are not part of the function arguments
       symbolsWithinReturnArgExprWhichAreNotFunctionArguments <- getSymbolsInTokens(getDescendantsOfToken(returnArgExprToken, tokens))
