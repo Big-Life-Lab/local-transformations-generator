@@ -230,7 +230,7 @@ getDefineFunctionPmmlStringForTokens <- function(tokens) {
   topLevelFunctionBodyExprTokens <- getExprTokens(getChildTokensForParent(functionBodyExprToken, tokens))
 
   pmmlFunctionString <- ''
-
+  
   for(i in 1:nrow(topLevelFunctionBodyExprTokens)) {
     if(i != nrow(topLevelFunctionBodyExprTokens)) {
       pmmlFunctionString <- paste(pmmlFunctionString, getPmmlStringForExprTokenWithinFunction(topLevelFunctionBodyExprTokens[i, ], functionArgNameTokens, functionName, tokens), sep='')
@@ -240,15 +240,23 @@ getDefineFunctionPmmlStringForTokens <- function(tokens) {
       # There are two way to return a value in PMML. One way is just return what the last expression does or use an explicit return statement
       # We initially assume that it's the first way
       returnArgExprToken <- topLevelFunctionBodyExprTokens[i, ];
+      
+      # For the first way if there is a left assign then we need to set the return expr to the expr token which is the right hand side of the assignment
+      childTokensForReturnArgExprToken <- getChildTokensForParent(returnArgExprToken, tokens)
+      # Check if there's a left assign. If there is then the right hand assignment expr token is the third child
+      if(doesTokensHaveALeftAssign(childTokensForReturnArgExprToken)) {
+        returnArgExprToken <- childTokensForReturnArgExprToken[3, ]
+      }
       # Check if it's the second way and if it is
-      if(nrow(getSymbolFunctionCallsWithText('return', getDescendantsOfToken(returnArgExprToken, tokens))) == 1) {
+      else if(nrow(getSymbolFunctionCallsWithText('return', getDescendantsOfToken(returnArgExprToken, tokens))) == 1) {
         #Get the expression for the argument to the return function call
         returnArgExprToken <- getExprTokens(getChildTokensForParent(topLevelFunctionBodyExprTokens[i, ], tokens))[2, ] 
       }
       
       #Convert the expression to it's PMML string
       pmmlStringForReturnArgExprToken <- getPmmlStringForExpr(returnArgExprToken, getDescendantsOfToken(returnArgExprToken, tokens))
-
+      print(pmmlStringForReturnArgExprToken)
+      
       #Find all the symbols used within the expression which are not part of the function arguments
       symbolsWithinReturnArgExprWhichAreNotFunctionArguments <- getSymbolsInTokens(getDescendantsOfToken(returnArgExprToken, tokens))
       symbolsWithinReturnArgExprWhichAreNotFunctionArguments <- subset(
