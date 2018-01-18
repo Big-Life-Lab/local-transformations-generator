@@ -398,10 +398,12 @@ getTablePmmlStringsForReadCsvFunctionCall <- function(tokens) {
   # This is where we will store the entire InlineTable xml element
   pmmlTableString <- ''
   
+  rownames <- rownames(table)
+  
   # Go through all the rows of the table
   for(i in 1:nrow(table)) {
     # For each row add a <row> opening tag
-    pmmlTableString <- glue::glue('{pmmlTableString}<row>')
+    pmmlTableString <- glue::glue('{pmmlTableString}<row><index>{rownames[[i]]}</index>')
     
     # Go through the columns of the row
     for(j in 1:ncol(table)) {
