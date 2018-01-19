@@ -1,6 +1,16 @@
 source(file.path(getwd(), 'R', './tokens.R'))
 source(file.path(getwd(), 'R', './token_to_pmml.R'))
 
+isDataFrameShortAccessExpr <- function(exprToCheck, tokens) {
+  childTokens <- getChildTokensForParent(exprToCheck, tokens)
+  
+  if(nrow(childTokens) > 2 & childTokens[2, 'text'] == '[' & childTokens[nrow(childTokens), 'text'] == ']') {
+    return(TRUE)
+  } else {
+    return(FALSE)
+  }
+}
+
 getDerivedFieldNameOrFunctionNameForTokens <- function(tokens) {
   symbols <- getSymbolsInTokens(tokens)
 
@@ -62,7 +72,7 @@ getPmmlStringForExpr <- function(expr, tokens) {
       stop(glue::glue('Unhandled special symbol {childSpecialTokensForCurrentExpr[1, "text"]}'))
     }
   }
-  # This means this expression has table access expression
+  # This means this expression has table access expression which looks like Table[Table$Name == 'Age_cont', ]$Mean_female
   else if(!is.na(tokensWhoseParentIsTheCurrentExpr[2, ]$token) & tokensWhoseParentIsTheCurrentExpr[2, ]$token == "'$'") {
     # Get the name of the column in the table which is the output column for this table access
     outputColumnName <- tokensWhoseParentIsTheCurrentExpr[3, 'text']
@@ -106,6 +116,15 @@ getPmmlStringForExpr <- function(expr, tokens) {
     
     # Return the MapValues pmml string
     return(glue::glue('<MapValues outputColumn="{outputColumnName}">{fieldColumnPairs}<TableLocator location="taxonomy" name="{tableName}"/></MapValues>'))
+  }
+  # This is a data frame access that looks like Table['Age_cont', 'Mean_male']
+  else if(isDataFrameShortAccessExpr(expr, tokens)) {
+    outputColumnName <- formatSymbolName(getChildTokensForParent(tokensWhoseParentIsTheCurrentExpr[5, ], tokens)[1, ])
+    indexColumnValue <- formatSymbolName(getChildTokensForParent(tokensWhoseParentIsTheCurrentExpr[3, ], tokens)[1, ])
+    tableName <- formatSymbolName(getChildTokensForParent(tokensWhoseParentIsTheCurrentExpr[1, ], tokens)[1, ])
+    
+    fieldColumnPairString <- glue::glue('<FieldColumnPair column="index" constant="{indexColumnValue}"/>')
+    return(glue::glue('<MapValues outputColumn="{outputColumnName}">{fieldColumnPairString}<TableLocator location="taxonomy" name="{tableName}"/></MapValues>'))
   }
   else if(tokensWhoseParentIsTheCurrentExprHasOneRow & tokensWhoseParentIsTheCurrentExpr[1, ]$token == IF_TOKEN) {
     conditionExpr <- tokensWhoseParentIsTheCurrentExpr[3, ]

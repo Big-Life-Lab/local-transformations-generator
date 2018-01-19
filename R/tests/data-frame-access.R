@@ -3,7 +3,8 @@ source(file.path(getwd(), 'R/local-transformations-generator.R'))
 testDataFrameAccess <- function() {
   expectedPmmlForFirstLine <- "<DerivedField name=\"testOne\" optype=\"continuous\"><MapValues outputColumn=\"out\"> <FieldColumnPair column=\"col1\" constant=\"Name\"/><TableLocator location=\"taxonomy\" name=\"Table\"/></MapValues></DerivedField>"
   expectedPmmlForSecondLine <- "<DerivedField name=\"testTwo\" optype=\"continuous\"><MapValues outputColumn=\"out\"> <FieldColumnPair column=\"col2\" field=\"testOne\"/><TableLocator location=\"taxonomy\" name=\"Table\"/></MapValues></DerivedField>"
-  expectedPmml <- paste(' <LocalTransformations> ', expectedPmmlForFirstLine, expectedPmmlForSecondLine, ' </LocalTransformations>', sep = '')
+  expectedPmmlForThirdLine <- '<DerivedField name="testThree" optype="continuous"><MapValues outputColumn="Mean_male"><FieldColumnPair column="index" constant="Age_cont"/><TableLocator location=\"taxonomy\" name=\"Table\"/></MapValues></DerivedField>'
+  expectedPmml <- paste(' <LocalTransformations> ', expectedPmmlForFirstLine, expectedPmmlForSecondLine, expectedPmmlForThirdLine, ' </LocalTransformations>', sep = '')
   
   actualPmml <- getPmmlStringFromRFile(file.path(getwd(), 'R/tests/test-assets/data-frame-access.R'), TRUE)
   

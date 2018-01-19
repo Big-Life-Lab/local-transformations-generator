@@ -10,6 +10,10 @@ getPmmlStringForSymbol <- function(symbol) {
   return(glue::glue('<FieldRef field="{fieldRefName}"/>'))
 }
 
+formatSymbolName <- function(symbol) {
+  return(gsub("'", "", symbol$text))
+}
+
 formatConstantTokenText <- function(constant) {
   formattedValue <- constant$text
   if(constant$token == STR_CONST_TOKEN) {
