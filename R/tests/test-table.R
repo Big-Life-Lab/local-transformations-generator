@@ -12,6 +12,6 @@ testTransformationForTable <- function() {
     print(expectedPmml)
     stop('testTransformationForTable test failed')
   } else {
-    print('testTransformationForTable test success')
+    print('test-table.R: testTransformationForTable test success')
   }
 }
