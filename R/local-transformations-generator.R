@@ -1,6 +1,10 @@
 source(file.path(getwd(), 'R', './tokens.R'))
 source(file.path(getwd(), 'R', './token_to_pmml.R'))
 
+# State variables
+# Keeps track of all the variables and the number of times they have been mutated. Each row is the name of the variable and every row has one column called mutation iteration which is the number of times this variable has been mutated
+mutatedVariables <- data.frame()
+
 isDataFrameShortAccessExpr <- function(exprToCheck, tokens) {
   childTokens <- getChildTokensForParent(exprToCheck, tokens)
   
@@ -31,7 +35,7 @@ getDerivedFieldNameOrFunctionNameForTokens <- function(tokens) {
     stop('derivedFieldName or functionName is unkown')
   }
 
-  print(derivedFieldNameOrFunctionName)
+  #print(derivedFieldNameOrFunctionName)
   return(derivedFieldNameOrFunctionName)
 }
 
@@ -192,8 +196,7 @@ getPmmlStringForExpr <- function(expr, tokens) {
   }
 }
 
-getDerivedFieldPmmlStringForTokens <- function(tokens) {
-  derivedFieldName <- getDerivedFieldNameOrFunctionNameForTokens(tokens)
+getDerivedFieldPmmlStringForTokens <- function(tokens, derivedFieldName) {
   symbolsWithDerivedFieldNameForText <- getAllSymbolsWithText(derivedFieldName, tokens)
 
   tokensToConvertToDerivedFieldPmml <- filterOutLeftAssignTokens(tokens)
@@ -222,9 +225,7 @@ getRArgumentsIntoFunctionString <- function(originalFunctionArgTokens) {
   return(rArgumentsIntoFunctionString)
 }
 
-getDefineFunctionPmmlStringForTokens <- function(tokens) {
-  functionName <- getDerivedFieldNameOrFunctionNameForTokens(tokens)
-
+getDefineFunctionPmmlStringForTokens <- function(tokens, functionName) {
   functionTokens = getFunctionTokens(tokens)
   if(nrow(functionTokens) > 1) {
     stop('Too many function tokens found within function definition')
@@ -441,7 +442,57 @@ getTablePmmlStringsForReadCsvFunctionCall <- function(tokens) {
   return(list(pmmlTableString, variableAssignedToTable))
 }
 
+getMutatedVariableName <- function(variableName, mutationNumber) {
+  if(mutationNumber <= 0) {
+    return(variableName)
+  } else {
+    return(glue::glue('{variableName}_Mutated_{mutationNumber}'))
+  }
+}
+
+# Goes through the mutation logic for the list tokens in the tokens arg for the variable with name variableName
+mutateRelevantVariables <- function(variableName, tokens) {
+  # Check if there is an entry in the mutatedVariables data frame for the current variable. if there isn't, then create one and set the number of times it's been mutated to -1
+  if(variableName %in% row.names(mutatedVariables) == FALSE) {
+    mutatedVariables[variableName, 'mutationIteration'] <<- -1
+  }
+  
+  # Get the expr token which encapsulates the left hand side of an assignment statement
+  exprTokenForRightAssign <- getChildTokensForParent(tokens[1, ], tokens)[3, ]
+  # Get the expr token which encapsulates the right hand side of an assignment statement
+  exprTokenForLeftAssign <- getChildTokensForParent(tokens[1, ], tokens)[1, ]
+  # For each token in the list of them check if it's a child of the LHS or RHS expr token
+  for(i in 1:nrow(tokens)) {
+    # If child of RHS token then set all symbols to their approriate new mutated value. For example if testOne is variable has been mutated twice then we set it to testOne_Mutated_2
+    if(isDescendantOfTokenWithId(exprTokenForRightAssign$id, tokens[i, ], tokens)) {
+      if(isSymbolToken(tokens[i, ]) & tokens[i, 'text'] %in% row.names(mutatedVariables)) {
+        tokens[i, 'text'] <- getMutatedVariableName(tokens[i, 'text'], mutatedVariables[tokens[i, 'text'], 'mutationIteration'])
+      }  
+    } 
+    # Otherwise if it's part of the LHS it has to be the symbol for the current variable so set it's new name to number of times it's been mutated till now plus one
+    else if(tokens[i, ]$parent == exprTokenForLeftAssign$id) {
+      tokens[i, 'text'] <- getMutatedVariableName(variableName, mutatedVariables[variableName, 'mutationIteration'] + 1)
+    }
+  } 
+  
+  # Get the list of all the variables we are currently tracking for mutation
+  currentVariables <- row.names(mutatedVariables)
+  # Find the one that matches with the variableName variable and increase the mutation count by one
+  for(i in currentVariables) {
+    if(i == variableName) {
+      mutatedVariables[i, 'mutationIteration'] <<- mutatedVariables[i, 'mutationIteration'] + 1
+    }
+  }
+  
+  # Return the mutated tokens
+  return(tokens)
+}
+
 getPmmlStringFromRFile <- function(filePath, srcFile=FALSE) {
+  if(srcFile) {
+    mutatedVariables <<- data.frame()
+  }
+  
   tokensWithComments = getParseData(parse(file = filePath))
   tokens <- filterOutCommentTokens(tokensWithComments)
 
@@ -457,20 +508,27 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE) {
     
     if(doesTokensHaveSourceFunctionCall(tokensForCurrentParentIndex) == TRUE) {
       localTransformationString <- paste(localTransformationString, getPmmlStringFromSouceFunctionCallTokens(tokensForCurrentParentIndex), sep='')
-    } 
-    # If this a read csv function call then we have to convert the imported csv file into a PMML table string
-    else if(doesTokensHaveReadCsvFunctionCall(tokens) == TRUE) {
-       # The return value is a list with the pmml string and the name of the variable to which the table was assigned
-       returnValues <- getTablePmmlStringsForReadCsvFunctionCall(tokens)
-       
-       # Add the pmml table string to the taxonomy string
-       taxonomy <- paste(taxonomy,returnValues[1])
-       print(returnValues[2])
-    }
-    else if(doesTokensHaveFunctionDefinition(tokensForCurrentParentIndex) == TRUE) {
-      localTransformationString <- paste(localTransformationString, getDefineFunctionPmmlStringForTokens(tokensForCurrentParentIndex), sep='')
     } else {
-      localTransformationString <- paste(localTransformationString, getDerivedFieldPmmlStringForTokens(tokensForCurrentParentIndex), sep='')
+      variableName <- getDerivedFieldNameOrFunctionNameForTokens(tokensForCurrentParentIndex)
+      
+      tokensForCurrentParentIndex <- mutateRelevantVariables(variableName, tokensForCurrentParentIndex)
+      # The new name for the possible mutated variable we are assigning to
+      mutatedVariableName <- getMutatedVariableName(variableName, mutatedVariables[variableName, 'mutationIteration'])
+      
+      # If this a read csv function call then we have to convert the imported csv file into a PMML table string
+      if(doesTokensHaveReadCsvFunctionCall(tokens) == TRUE) {
+        # The return value is a list with the pmml string and the name of the variable to which the table was assigned
+        returnValues <- getTablePmmlStringsForReadCsvFunctionCall(tokens)
+        
+        # Add the pmml table string to the taxonomy string
+        taxonomy <- paste(taxonomy,returnValues[1])
+        #print(returnValues[2])
+      }
+      else if(doesTokensHaveFunctionDefinition(tokensForCurrentParentIndex) == TRUE) {
+        localTransformationString <- paste(localTransformationString, getDefineFunctionPmmlStringForTokens(tokensForCurrentParentIndex, mutatedVariableName), sep='')
+      } else {
+        localTransformationString <- paste(localTransformationString, getDerivedFieldPmmlStringForTokens(tokensForCurrentParentIndex, mutatedVariableName), sep='')
+      } 
     }
 
     if(nextZeroParentIndex == nrow(tokens)) {
