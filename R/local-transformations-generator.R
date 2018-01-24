@@ -11,28 +11,34 @@ isDataFrameShortAccessExpr <- function(exprToCheck, tokens) {
   }
 }
 
-getDerivedFieldNameOrFunctionNameForTokens <- function(tokens) {
-  symbols <- getSymbolsInTokens(tokens)
-
-  derivedFieldNameOrFunctionName <- 'unknown'
-
-  for(i in 1:nrow(symbols)) {
-    parentExprForCurrentSymbol <- getExprWithIdInTokens(symbols[i, 'parent'], tokens)
-
-    tokensWithSameParentAsParentExprForCurrentSymbol <- getTokensWithParent(parentExprForCurrentSymbol$parent, tokens)
-
-    if(doesTokensHaveALeftAssign(tokensWithSameParentAsParentExprForCurrentSymbol)) {
-      derivedFieldNameOrFunctionName <- symbols[i, 'text']
-      break;
+getFirstSymbolInExpr <- function(expr, tokens) {
+  firstSymbol <- NA
+  childTokenForExpr <- getChildTokensForParent(expr, tokens)
+  
+  for(i in 1:nrow(childTokenForExpr)) {
+    if(isSymbolToken(childTokenForExpr[i, ])) {
+      firstSymbol <- childTokenForExpr[i, ]
+    } else if(childTokenForExpr[i, 'token'] == 'expr') {
+      firstSymbol <- getFirstSymbolInExpr(childTokenForExpr[i, ], tokens)
+    }
+    
+    if(is.na(firstSymbol) == FALSE) {
+      break
     }
   }
+  
+  return(firstSymbol)
+}
 
-  if(derivedFieldNameOrFunctionName == 'unknown') {
+getDerivedFieldNameOrFunctionNameForTokens <- function(tokens) {
+  firstSymbol <- getFirstSymbolInExpr(getChildTokensForParent(tokens[1, ], tokens)[1, ], tokens)
+  
+  if(is.na(firstSymbol)) {
     stop('derivedFieldName or functionName is unkown')
   }
-
-  #print(derivedFieldNameOrFunctionName)
-  return(derivedFieldNameOrFunctionName)
+  derivedFieldNameOrFunctionName <- 'unknown'
+  
+  return(firstSymbol$text)
 }
 
 getPmmlStringForIfToken <- function(conditionExpr, trueResultExpr, falseResultExpr, tokens) {
@@ -496,7 +502,6 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE, mutatedVariables = d
       localTransformationString <- paste(localTransformationString, getPmmlStringFromSouceFunctionCallTokens(tokensForCurrentParentIndex, mutatedVariables), sep='')
     } else {
       variableName <- getDerivedFieldNameOrFunctionNameForTokens(tokensForCurrentParentIndex)
-      
       mutateRelevantVariablesResult <- mutateRelevantVariables(variableName, tokensForCurrentParentIndex, mutatedVariables)
       tokensForCurrentParentIndex <- mutateRelevantVariablesResult$tokens
       mutatedVariables <- mutateRelevantVariablesResult$mutatedVariables
@@ -513,6 +518,14 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE, mutatedVariables = d
         # If there's an error set it to NA
         evaluatedValue <<- NA
       })
+      
+      if(mutatedVariables[variableName, 'mutationIteration'] != 0) {
+        for(obj in ls()) {
+          if(obj == variableName) {
+            evaluatedValue = get(obj)
+          }
+        }
+      }
       
       # If the evaluated value is a string then it's most probably a string assignment statement so call the function to create a DerivedField Pmml node
       if(class(evaluatedValue) == 'character') {
