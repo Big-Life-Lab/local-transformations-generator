@@ -399,36 +399,22 @@ getPmmlStringFromSouceFunctionCallTokens <- function(sourceFunctionCallTokens) {
   return(getPmmlStringFromRFile(sourceFilePath))
 }
 
-getTablePmmlStringsForReadCsvFunctionCall <- function(tokens) {
-  # Get the name of the variable to which the table contents have been assigned
-  variableAssignedToTable <- getDerivedFieldNameOrFunctionNameForTokens(tokens)
-  
-  # Get id of the expression which is the parent of the entire read csv function call
-  idOfExprWhichHasFunctionCall <- tokens[5, ]
-  # Get the expression which is the parent of the argument that goes into the read csv funtion call
-  exprWithArgumentToReadCsvFunctionCall <- getChildTokensForParent(idOfExprWhichHasFunctionCall, tokens)[3, ]
-  # Get the R code as a string for the argument to the read.csv function call
-  readCsvFilePathCodeString <- getParseText(tokens, exprWithArgumentToReadCsvFunctionCall$id)
-  # Evaluate the code string to get the path to the table
-  csvFilePath <- eval(parse(text=readCsvFilePathCodeString))
-  
-  # get the csv file as a dataframe
-  table <- read.csv(csvFilePath)
-  
+# Generates the PMML table string for the data frame in the dataFrame argument whose name is the tableName argument
+getTablePmmlStringsForDataFrame <- function(dataFrame, tableName) {
   # This is where we will store the entire InlineTable xml element
   pmmlTableString <- ''
   
-  rownames <- rownames(table)
+  rownames <- rownames(dataFrame)
   
   # Go through all the rows of the table
-  for(i in 1:nrow(table)) {
+  for(i in 1:nrow(dataFrame)) {
     # For each row add a <row> opening tag
     pmmlTableString <- glue::glue('{pmmlTableString}<row><index>{rownames[[i]]}</index>')
     
     # Go through the columns of the row
-    for(j in 1:ncol(table)) {
+    for(j in 1:ncol(dataFrame)) {
       # For each column add <colname>Value of the column in this row</colname>
-      pmmlTableString <- glue::glue('{pmmlTableString}<{colnames(table)[j]}>{table[i,j]}</{colnames(table)[j]}>')
+      pmmlTableString <- glue::glue('{pmmlTableString}<{colnames(dataFrame)[j]}>{dataFrame[i,j]}</{colnames(dataFrame)[j]}>')
     }
     
     # End of this row so add a closing row xml tag
@@ -436,10 +422,10 @@ getTablePmmlStringsForReadCsvFunctionCall <- function(tokens) {
   }
   
   # The final table string
-  pmmlTableString <- glue::glue('<Taxonomy name="{variableAssignedToTable}"><InlineTable>{pmmlTableString}</InlineTable></Taxonomy>')
+  pmmlTableString <- glue::glue('<Taxonomy name="{tableName}"><InlineTable>{pmmlTableString}</InlineTable></Taxonomy>')
 
   # Return the string along with the variable to which the table data was assigned
-  return(list(pmmlTableString, variableAssignedToTable))
+  return(list(pmmlTableString, table))
 }
 
 getMutatedVariableName <- function(variableName, mutationNumber) {
@@ -523,7 +509,7 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE) {
       evaluatedValue <- NA
       tryCatch({
         # Evaluate the line of code
-        evaluatedValue <<- eval(parse(text=getParseText(tokensForCurrentParentIndex, tokensForCurrentParentIndex[1, 'id'])))
+        evaluatedValue <- eval(parse(text=getParseText(tokensForCurrentParentIndex, tokensForCurrentParentIndex[1, 'id'])))
       }, error = function(e) {
         # If there's an error set it to NA
         evaluatedValue <<- NA
@@ -533,10 +519,10 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE) {
       if(class(evaluatedValue) == 'character') {
         localTransformationString <- paste(localTransformationString, getDerivedFieldPmmlStringForTokens(tokensForCurrentParentIndex, mutatedVariableName), sep='')
       }
-      # If this a read csv function call then we have to convert the imported csv file into a PMML table string
-      else if(doesTokensHaveReadCsvFunctionCall(tokens) == TRUE) {
+      # if the evaluated value is a data frame
+      else if(class(evaluatedValue) == 'data.frame') {
         # The return value is a list with the pmml string and the name of the variable to which the table was assigned
-        returnValues <- getTablePmmlStringsForReadCsvFunctionCall(tokens)
+        returnValues <- getTablePmmlStringsForDataFrame(evaluatedValue, mutatedVariableName)
         
         # Add the pmml table string to the taxonomy string
         taxonomy <- paste(taxonomy,returnValues[1])
