@@ -490,9 +490,13 @@ mutateRelevantVariables <- function(variableName, tokens) {
 
 getPmmlStringFromRFile <- function(filePath, srcFile=FALSE) {
   if(srcFile) {
+    # Create directory where we store temperoray files during the addin operation
+    dir.create(file.path(getwd(), 'temp'), showWarnings = FALSE)
+    # Save the current workspace in the temp directory. Since we are going to be evaluating each line of code we don't want to overwrite a person's workspace objects as we execute the code
+    save.image(file=file.path(getwd(), 'temp/temp.RData'))
     mutatedVariables <<- data.frame()
   }
-  
+
   tokensWithComments = getParseData(parse(file = filePath))
   tokens <- filterOutCommentTokens(tokensWithComments)
 
@@ -541,6 +545,11 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE) {
   }
 
   if(srcFile == TRUE) {
+    # Reset the workspace to before the addin was run
+    load(file.path(getwd(), 'temp/temp.RData'))
+    # Remove the file which had the workspace objects
+    file.remove(file.path(getwd(), 'temp/temp.RData'))
+    
     return(paste(taxonomy, '<LocalTransformations>', localTransformationString, '</LocalTransformations>'))
   } else {
     return(localTransformationString)
