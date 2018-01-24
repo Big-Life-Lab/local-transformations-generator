@@ -1,10 +1,6 @@
 source(file.path(getwd(), 'R', './tokens.R'))
 source(file.path(getwd(), 'R', './token_to_pmml.R'))
 
-# State variables
-# Keeps track of all the variables and the number of times they have been mutated. Each row is the name of the variable and every row has one column called mutation iteration which is the number of times this variable has been mutated
-mutatedVariables <- data.frame()
-
 isDataFrameShortAccessExpr <- function(exprToCheck, tokens) {
   childTokens <- getChildTokensForParent(exprToCheck, tokens)
   
@@ -391,12 +387,12 @@ getIndexOfNextZeroParent <- function(parseData) {
   return(nrow(parseData))
 }
 
-getPmmlStringFromSouceFunctionCallTokens <- function(sourceFunctionCallTokens) {
+getPmmlStringFromSouceFunctionCallTokens <- function(sourceFunctionCallTokens, mutatedVariables) {
   sourceFunctionCallArgExprToken <- getTokensWithParent(sourceFunctionCallTokens[1, ]$id, sourceFunctionCallTokens)[3, ]
   sourceFunctionCallArgCodeString <- getParseText(sourceFunctionCallTokens, sourceFunctionCallArgExprToken$id)
   sourceFilePath <- eval(parse(text=sourceFunctionCallArgCodeString))
 
-  return(getPmmlStringFromRFile(sourceFilePath))
+  return(getPmmlStringFromRFile(sourceFilePath, FALSE, mutatedVariables))
 }
 
 # Generates the PMML table string for the data frame in the dataFrame argument whose name is the tableName argument
@@ -437,10 +433,10 @@ getMutatedVariableName <- function(variableName, mutationNumber) {
 }
 
 # Goes through the mutation logic for the list tokens in the tokens arg for the variable with name variableName
-mutateRelevantVariables <- function(variableName, tokens) {
+mutateRelevantVariables <- function(variableName, tokens, mutatedVariables) {
   # Check if there is an entry in the mutatedVariables data frame for the current variable. if there isn't, then create one and set the number of times it's been mutated to -1
   if(variableName %in% row.names(mutatedVariables) == FALSE) {
-    mutatedVariables[variableName, 'mutationIteration'] <<- -1
+    mutatedVariables[variableName, 'mutationIteration'] <- -1
   }
   
   # Get the expr token which encapsulates the left hand side of an assignment statement
@@ -466,21 +462,21 @@ mutateRelevantVariables <- function(variableName, tokens) {
   # Find the one that matches with the variableName variable and increase the mutation count by one
   for(i in currentVariables) {
     if(i == variableName) {
-      mutatedVariables[i, 'mutationIteration'] <<- mutatedVariables[i, 'mutationIteration'] + 1
+      mutatedVariables[i, 'mutationIteration'] <- mutatedVariables[i, 'mutationIteration'] + 1
     }
   }
   
   # Return the mutated tokens
-  return(tokens)
+  return(list(tokens=tokens, mutatedVariables=mutatedVariables))
 }
 
-getPmmlStringFromRFile <- function(filePath, srcFile=FALSE) {
+# mutatedVariables - Keeps track of all the variables and the number of times they have been mutated. Each row is the name of the variable and every row has one column called mutation iteration which is the number of times this variable has been mutated. When function is called for the first time should not be passed in
+getPmmlStringFromRFile <- function(filePath, srcFile=FALSE, mutatedVariables = data.frame()) {
   if(srcFile) {
     # Create directory where we store temperoray files during the addin operation
     dir.create(file.path(getwd(), 'temp'), showWarnings = FALSE)
     # Save the current workspace in the temp directory. Since we are going to be evaluating each line of code we don't want to overwrite a person's workspace objects as we execute the code
     save.image(file=file.path(getwd(), 'temp/temp.RData'))
-    mutatedVariables <<- data.frame()
   }
 
   tokensWithComments = getParseData(parse(file = filePath))
@@ -497,11 +493,14 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE) {
     #print(tokensForCurrentParentIndex);
     
     if(doesTokensHaveSourceFunctionCall(tokensForCurrentParentIndex) == TRUE) {
-      localTransformationString <- paste(localTransformationString, getPmmlStringFromSouceFunctionCallTokens(tokensForCurrentParentIndex), sep='')
+      localTransformationString <- paste(localTransformationString, getPmmlStringFromSouceFunctionCallTokens(tokensForCurrentParentIndex, mutatedVariables), sep='')
     } else {
       variableName <- getDerivedFieldNameOrFunctionNameForTokens(tokensForCurrentParentIndex)
       
-      tokensForCurrentParentIndex <- mutateRelevantVariables(variableName, tokensForCurrentParentIndex)
+      mutateRelevantVariablesResult <- mutateRelevantVariables(variableName, tokensForCurrentParentIndex, mutatedVariables)
+      tokensForCurrentParentIndex <- mutateRelevantVariablesResult$tokens
+      mutatedVariables <- mutateRelevantVariablesResult$mutatedVariables
+      
       # The new name for the possible mutated variable we are assigning to
       mutatedVariableName <- getMutatedVariableName(variableName, mutatedVariables[variableName, 'mutationIteration'])
       
