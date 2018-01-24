@@ -519,8 +519,22 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE) {
       # The new name for the possible mutated variable we are assigning to
       mutatedVariableName <- getMutatedVariableName(variableName, mutatedVariables[variableName, 'mutationIteration'])
       
+      # We are going to evaluate the code represented by the tokens in the variable tokensForCurrentParentIndex and depending on the value returned called the right pmml parsing function
+      evaluatedValue <- NA
+      tryCatch({
+        # Evaluate the line of code
+        evaluatedValue <<- eval(parse(text=getParseText(tokensForCurrentParentIndex, tokensForCurrentParentIndex[1, 'id'])))
+      }, error = function(e) {
+        # If there's an error set it to NA
+        evaluatedValue <<- NA
+      })
+      
+      # If the evaluated value is a string then it's most probably a string assignment statement so call the function to create a DerivedField Pmml node
+      if(class(evaluatedValue) == 'character') {
+        localTransformationString <- paste(localTransformationString, getDerivedFieldPmmlStringForTokens(tokensForCurrentParentIndex, mutatedVariableName), sep='')
+      }
       # If this a read csv function call then we have to convert the imported csv file into a PMML table string
-      if(doesTokensHaveReadCsvFunctionCall(tokens) == TRUE) {
+      else if(doesTokensHaveReadCsvFunctionCall(tokens) == TRUE) {
         # The return value is a list with the pmml string and the name of the variable to which the table was assigned
         returnValues <- getTablePmmlStringsForReadCsvFunctionCall(tokens)
         
