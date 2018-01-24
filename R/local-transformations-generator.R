@@ -13,13 +13,13 @@ isDataFrameShortAccessExpr <- function(exprToCheck, tokens) {
 
 getFirstSymbolInExpr <- function(expr, tokens) {
   firstSymbol <- NA
-  childTokenForExpr <- getChildTokensForParent(expr, tokens)
+  childTokensForExpr <- getChildTokensForParent(expr, tokens)
   
-  for(i in 1:nrow(childTokenForExpr)) {
-    if(isSymbolToken(childTokenForExpr[i, ])) {
-      firstSymbol <- childTokenForExpr[i, ]
-    } else if(childTokenForExpr[i, 'token'] == 'expr') {
-      firstSymbol <- getFirstSymbolInExpr(childTokenForExpr[i, ], tokens)
+  for(i in 1:nrow(childTokensForExpr)) {
+    if(isSymbolToken(childTokensForExpr[i, ])) {
+      firstSymbol <- childTokensForExpr[i, ]
+    } else if(childTokensForExpr[i, 'token'] == 'expr') {
+      firstSymbol <- getFirstSymbolInExpr(childTokensForExpr[i, ], tokens)
     }
     
     if(is.na(firstSymbol) == FALSE) {
@@ -31,7 +31,12 @@ getFirstSymbolInExpr <- function(expr, tokens) {
 }
 
 getDerivedFieldNameOrFunctionNameForTokens <- function(tokens) {
-  firstSymbol <- getFirstSymbolInExpr(getChildTokensForParent(tokens[1, ], tokens)[1, ], tokens)
+  leftAssignToken <- tokens[which(tokens$token == LEFT_ASSIGN_TOKEN), ]
+  if(nrow(leftAssignToken) > 1) {
+    leftAssignToken <- leftAssignToken[1, ]
+  }
+  
+  firstSymbol <- getFirstSymbolInExpr(getTokensWithParent(leftAssignToken$parent, tokens)[1, ], tokens)
   
   if(is.na(firstSymbol)) {
     stop('derivedFieldName or functionName is unkown')
@@ -545,6 +550,7 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE, mutatedVariables = d
       else if(doesTokensHaveFunctionDefinition(tokensForCurrentParentIndex) == TRUE) {
         localTransformationString <- paste(localTransformationString, getDefineFunctionPmmlStringForTokens(tokensForCurrentParentIndex, mutatedVariableName), sep='')
       } else {
+        
         localTransformationString <- paste(localTransformationString, getDerivedFieldPmmlStringForTokens(tokensForCurrentParentIndex, mutatedVariableName), sep='')
       } 
     }
