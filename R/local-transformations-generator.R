@@ -502,6 +502,8 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE, mutatedVariables = d
       localTransformationString <- paste(localTransformationString, getPmmlStringFromSouceFunctionCallTokens(tokensForCurrentParentIndex, mutatedVariables), sep='')
     } else {
       variableName <- getDerivedFieldNameOrFunctionNameForTokens(tokensForCurrentParentIndex)
+      print(variableName)
+      
       mutateRelevantVariablesResult <- mutateRelevantVariables(variableName, tokensForCurrentParentIndex, mutatedVariables)
       tokensForCurrentParentIndex <- mutateRelevantVariablesResult$tokens
       mutatedVariables <- mutateRelevantVariablesResult$mutatedVariables
