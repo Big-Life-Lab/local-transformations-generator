@@ -22,9 +22,7 @@ getFirstSymbolInExpr <- function(expr, tokens) {
       firstSymbol <- getFirstSymbolInExpr(childTokensForExpr[i, ], tokens)
     }
     
-    if(is.na(firstSymbol) == FALSE) {
-      break
-    }
+    ifelse(is.na(firstSymbol) == FALSE, break, continue)
   }
   
   return(firstSymbol)
@@ -37,13 +35,12 @@ getDerivedFieldNameOrFunctionNameForTokens <- function(tokens) {
   }
   
   firstSymbol <- getFirstSymbolInExpr(getTokensWithParent(leftAssignToken$parent, tokens)[1, ], tokens)
-  
-  if(is.na(firstSymbol)) {
+
+  if(nrow(firstSymbol) == 0) {
     stop('derivedFieldName or functionName is unkown')
+  } else {
+    return(firstSymbol$text)
   }
-  derivedFieldNameOrFunctionName <- 'unknown'
-  
-  return(firstSymbol$text)
 }
 
 getPmmlStringForIfToken <- function(conditionExpr, trueResultExpr, falseResultExpr, tokens) {
