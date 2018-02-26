@@ -4,7 +4,10 @@ source(file.path(getwd(), 'R', './token_to_pmml.R'))
 isDataFrameShortAccessExpr <- function(exprToCheck, tokens) {
   childTokens <- getChildTokensForParent(exprToCheck, tokens)
   
-  if(nrow(childTokens) > 2 & childTokens[2, 'text'] == '[' & childTokens[nrow(childTokens), 'text'] == ']') {
+  if(nrow(childTokens) == 0) {
+    return(FALSE)
+  }
+  else if(nrow(childTokens) > 2 & childTokens[2, 'text'] == '[' & childTokens[nrow(childTokens), 'text'] == ']') {
     return(TRUE)
   } else {
     return(FALSE)
