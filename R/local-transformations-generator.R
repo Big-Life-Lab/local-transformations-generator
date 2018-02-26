@@ -204,17 +204,22 @@ getPmmlStringForExpr <- function(expr, tokens) {
 }
 
 getDerivedFieldPmmlStringForTokens <- function(tokens, derivedFieldName) {
-  symbolsWithDerivedFieldNameForText <- getAllSymbolsWithText(derivedFieldName, tokens)
-
-  tokensToConvertToDerivedFieldPmml <- filterOutLeftAssignTokens(tokens)
-  tokensToConvertToDerivedFieldPmml <- filterOutSymbolsWithText(derivedFieldName, tokensToConvertToDerivedFieldPmml)
-
-  for(i in 1:nrow(symbolsWithDerivedFieldNameForText)) {
-    tokensToConvertToDerivedFieldPmml <- filterOutTokenWithId(symbolsWithDerivedFieldNameForText[i, 'parent'], tokensToConvertToDerivedFieldPmml)
+  leftAssignToken <- tokens[which(tokens$token == LEFT_ASSIGN_TOKEN), ][1, ]
+  
+  tokenWithAssignmentCode <- getTokenAfterTokenWithId(tokens, leftAssignToken$id)
+  
+  transformationsPmmlString <- ''
+  if(tokenWithAssignmentCode$token == EXPR_TOKEN) {
+    transformationsPmmlString <- getPmmlStringForExpr(getTokenAfterTokenWithId(tokens, leftAssignToken$id), tokens)    
+  } else if(tokenWithAssignmentCode$token == NUM_CONST_TOKEN | tokenWithAssignmentCode$token == STR_CONST_TOKEN) {
+    transformationsPmmlString <- getPmmlStringForConstant(tokenWithAssignmentCode)
+  } else if(tokenWithAssignmentCode$token == SYMBOL_TOKEN) {
+    transformationsPmmlString <- getPmmlStringForSymbol(tokenWithAssignmentCode)
+  } else {
+    stop(glue::glue('Unhandled token type {tokenWithAssignmentCode$token} for field {derivedFieldName}'))
   }
 
-  transformationPmmlString <- getPmmlStringForExpr(tokensToConvertToDerivedFieldPmml[1, ], tokensToConvertToDerivedFieldPmml)
-  return(glue::glue('<DerivedField name="{derivedFieldName}" optype="continuous">{transformationPmmlString}</DerivedField>'))
+  return(glue::glue('<DerivedField name="{derivedFieldName}" optype="continuous">{transformationsPmmlString}</DerivedField>'))
 }
 
 getRArgumentsIntoFunctionString <- function(originalFunctionArgTokens) {
