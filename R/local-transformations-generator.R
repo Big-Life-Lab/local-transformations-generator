@@ -229,35 +229,96 @@ getRArgumentsIntoFunctionString <- function(originalFunctionArgTokens) {
   return(rArgumentsIntoFunctionString)
 }
 
+getDefineFunctionForDefaultArgExpr <- function(argSymbolFormal, allArgSymbolFormals, tokens) {
+  possibleEqFormalsToken <- getTokenWithId(argSymbolFormal$id+1, tokens)
+  doesArgHaveDefaultValue <- possibleEqFormalsToken$token == EQ_FORMALS
+  
+  if(!doesArgHaveDefaultValue) {
+    return('')
+  } else {
+    eqFormalsToken <- possibleEqFormalsToken
+    
+    tokenAfterEqFormalsToken <- getTokenAfterTokenWithId(tokens, eqFormalsToken$id)
+    
+    argName <- argSymbolFormal$text
+    
+    defaultValue <- NA
+    if(tokenAfterEqFormalsToken$token == EXPR_TOKEN) {
+      defaultValue <- getPmmlStringForExpr(tokenAfterEqFormalsToken, tokens)
+    } else {
+      defaultValue <- getPmmlStringForConstant(tokenAfterEqFormalsToken)
+    }
+    
+    return(glue::glue(getPmmlStringForDefineFunction(glue::glue('default({argName})'), allArgSymbolFormals, glue::glue('<Apply function="if"><Apply function="equals"><FieldRef field="{argName}"/><Constant dataType="NA">NA</Constant></Apply>{defaultValue}<FieldRef field="{argName}"/></Apply>'))))
+  }
+}
+
+
+# Returns the pmmlString arg where every reference to an argument that has been defaulted is replaced with a function call that returns the formatted value
+getPmmlStringWithDefaultedArgsCorrectlySet <- function(defaultedArgTokens, allArgTokens, pmmlString) {
+  formattedPmmlString <- pmmlString
+  
+  if(nrow(defaultedArgTokens) != 0) {
+    for(i in 1:nrow(defaultedArgTokens)) {
+      defaultFunctionArgsPmmlString <- ''
+      for(j in 1:nrow(allArgTokens)) {
+        # Added placeholder to the beginning to prevent subsequent replacement calls from replacing the earlier replacement. THis will be put back to the right string later
+        defaultFunctionArgsPmmlString <- glue::glue(defaultFunctionArgsPmmlString, '<FieldRef field="placeholder_{allArgTokens[j, "text"]}"/>')  
+      }
+      
+      formattedPmmlString <- gsub(glue::glue('<FieldRef field="{defaultedArgTokens[i, "text"]}"/>'), glue::glue('<Apply function="default({defaultedArgTokens[i, "text"]})">{defaultFunctionArgsPmmlString}</Apply>'), formattedPmmlString)
+    }
+    
+    for(i in 1:nrow(allArgTokens)) {
+      formattedPmmlString <- gsub(glue::glue('<FieldRef field="placeholder_{allArgTokens[i, "text"]}"/>'), glue::glue('<FieldRef field="{allArgTokens[i, "text"]}"/>'), formattedPmmlString)
+    }
+  }
+  
+  return(formattedPmmlString)
+}
+
 getDefineFunctionPmmlStringForTokens <- function(tokens, functionName) {
-  functionTokens = getFunctionTokens(tokens)
+  functionTokens <- getFunctionTokens(tokens)
   if(nrow(functionTokens) > 1) {
     stop('Too many function tokens found within function definition')
   }
 
-  functionTokenParentExprId = functionTokens[1, ]$parent
+  functionTokenParentExprId <- functionTokens[1, ]$parent
 
-  functionExprToken = getTokenWithId(functionTokenParentExprId, tokens)
+  functionExprToken <- getTokenWithId(functionTokenParentExprId, tokens)
 
-  functionDefinitionTokens = getDescendantsOfToken(functionExprToken, tokens)
+  functionDefinitionTokens <- getDescendantsOfToken(functionExprToken, tokens)
 
   #The names of the functions arguments
   functionArgNameTokens <- getSymbolFormalsTokens(tokens)
-
-  #Expression token for the body of the function
-  functionBodyExprToken <- getExprTokens(getChildTokensForParent(functionExprToken, tokens))[1, ]
-
+  
+  #Expression tokens which are children of the function expr. The expr tokens within the function could be one of the following:
+  #1. Expr for default values assigned to an argument
+  #2. Expr for the function body which is what we want
+  # The function body expr will be at the end so get the last row in the data frame consisting of all the expr tokens
+  functionBodyExprToken <- tail(getExprTokens(getChildTokensForParent(functionExprToken, tokens)), n=1)
+  
   #Get all the tokens which together make up the function body
   functionBodyExprTokenDescendants = getDescendantsOfToken(functionBodyExprToken, tokens)
-
+  
   #Get the top level expr tokens for the function body. These are the tokens which hold all the logic in the function body as well as the return call
   topLevelFunctionBodyExprTokens <- getExprTokens(getChildTokensForParent(functionBodyExprToken, tokens))
 
   pmmlFunctionString <- ''
   
+  defaultedArgs <- data.frame()
+  for(i in 1:nrow(functionArgNameTokens)) {
+    defaultFunctionPmmlStringForCurrentArg <- getDefineFunctionForDefaultArgExpr(functionArgNameTokens[i, ], functionArgNameTokens, tokens)
+    
+    if(defaultFunctionPmmlStringForCurrentArg != '') {
+      defaultedArgs <- rbind(defaultedArgs, functionArgNameTokens[i, ])
+      pmmlFunctionString <- glue::glue(pmmlFunctionString, defaultFunctionPmmlStringForCurrentArg)
+    }
+  }
+  
   for(i in 1:nrow(topLevelFunctionBodyExprTokens)) {
     if(i != nrow(topLevelFunctionBodyExprTokens)) {
-      pmmlFunctionString <- paste(pmmlFunctionString, getPmmlStringForExprTokenWithinFunction(topLevelFunctionBodyExprTokens[i, ], functionArgNameTokens, functionName, tokens), sep='')
+      pmmlFunctionString <- paste(pmmlFunctionString, getPmmlStringForExprTokenWithinFunction(topLevelFunctionBodyExprTokens[i, ], functionArgNameTokens, functionName, defaultedArgs, tokens), sep='')
     }
     #It's the last expression so it has to be a function return call
     else {
@@ -312,6 +373,8 @@ getDefineFunctionPmmlStringForTokens <- function(tokens, functionName) {
           )
         }
       }
+      
+      pmmlStringForReturnArgExprToken <- getPmmlStringWithDefaultedArgsCorrectlySet(defaultedArgs, functionArgNameTokens, pmmlStringForReturnArgExprToken)
 
       #Make the DefineFunction PMML string
       pmmlDefineFunctionString <- getPmmlStringForDefineFunction(functionName, functionArgNameTokens, pmmlStringForReturnArgExprToken)
@@ -331,7 +394,7 @@ getFunctionNameForInnerFunctionExprToken <- function(originalFunctionName, varia
   return(functionName)
 }
 
-getPmmlStringForExprTokenWithinFunction <- function(innerFunctionExprToken, originalFunctionArgTokens, originalFunctionName, tokens) {
+getPmmlStringForExprTokenWithinFunction <- function(innerFunctionExprToken, originalFunctionArgTokens, originalFunctionName, defaultedArgTokens, tokens) {
   #Get the name of the variable this expression is being used to initialize. This will be used for the name of the function
   variableName <- getDerivedFieldNameOrFunctionNameForTokens(getDescendantsOfToken(innerFunctionExprToken, tokens))
   functionName <- getFunctionNameForInnerFunctionExprToken(originalFunctionName, variableName)
@@ -370,6 +433,8 @@ getPmmlStringForExprTokenWithinFunction <- function(innerFunctionExprToken, orig
       pmmlStringForInitializationExprToken <- gsub(glue::glue('<FieldRef field="{symbolName}"/>'), pmmlStringForFunctionCallForCurrentSymbol, pmmlStringForInitializationExprToken)
     }
   }
+  
+  pmmlStringForInitializationExprToken <- getPmmlStringWithDefaultedArgsCorrectlySet(defaultedArgTokens, originalFunctionArgTokens, pmmlStringForInitializationExprToken)
 
   defineFunctionPmmlString <- getPmmlStringForDefineFunction(functionName, originalFunctionArgTokens, pmmlStringForInitializationExprToken)
 

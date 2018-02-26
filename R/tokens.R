@@ -22,6 +22,7 @@ SYMBOL_FUNCTION_CALL_TOKEN <- 'SYMBOL_FUNCTION_CALL'
 
 FUNCTION_TOKEN <- 'FUNCTION'
 SYMBOL_FORMALS_TOKEN <- 'SYMBOL_FORMALS'
+EQ_FORMALS <- 'EQ_FORMALS'
 
 SPECIAL_TOKEN <- 'SPECIAL'
 
@@ -185,5 +186,23 @@ isLeftAssignmentSymbolToken <- function(symbolToken, tokens) {
     return(childTokensForLeftAssignExprToken[1, 'id'] == symbolToken$id)
   } else {
     return(FALSE)
+  }
+}
+
+# Returns the token row that comes after the token with id the same as the id arg
+getTokenAfterTokenWithId <- function(tokens, id) {
+  tokenIndex <- NA
+  
+  for(i in 1:nrow(tokens)) {
+    if(tokens[i, 'id'] == id) {
+      tokenIndex <- i
+      break
+    }
+  }
+  
+  if(is.na(tokenIndex)) {
+    stop(glue::glue('No token with id {id} found'))
+  } else {
+    return(tokens[i+1, ])
   }
 }
