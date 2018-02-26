@@ -257,7 +257,7 @@ getDefineFunctionForDefaultArgExpr <- function(argSymbolFormal, allArgSymbolForm
       defaultValue <- getPmmlStringForConstant(tokenAfterEqFormalsToken)
     }
     
-    return(glue::glue(getPmmlStringForDefineFunction(glue::glue('default({argName})'), allArgSymbolFormals, glue::glue('<Apply function="if"><Apply function="equals"><FieldRef field="{argName}"/><Constant dataType="NA">NA</Constant></Apply>{defaultValue}<FieldRef field="{argName}"/></Apply>'))))
+    return(glue::glue(getPmmlStringForDefineFunction(glue::glue('default({argName})'), allArgSymbolFormals, glue::glue('<Apply function="if"><Apply function="equal"><FieldRef field="{argName}"/><Constant dataType="NA">NA</Constant></Apply>{defaultValue}<FieldRef field="{argName}"/></Apply>'))))
   }
 }
 

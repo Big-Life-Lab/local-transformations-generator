@@ -2,9 +2,9 @@ source(file.path(getwd(), 'R/local-transformations-generator.R'))
 
 getDefineFunctionForDefault <- function(argName, defaultValue, defaultValueType, defaultValuePmml = NA) {
   if(is.na(defaultValuePmml)) {
-    return(glue::glue("<Apply function=\"if\"><Apply function=\"equals\"><FieldRef field=\"{argName}\"/><Constant dataType=\"NA\">NA</Constant></Apply><Constant dataType=\"{defaultValueType}\">{defaultValue}</Constant><FieldRef field=\"{argName}\"/></Apply>"))  
+    return(glue::glue("<Apply function=\"if\"><Apply function=\"equal\"><FieldRef field=\"{argName}\"/><Constant dataType=\"NA\">NA</Constant></Apply><Constant dataType=\"{defaultValueType}\">{defaultValue}</Constant><FieldRef field=\"{argName}\"/></Apply>"))  
   } else {
-    return(glue::glue("<Apply function=\"if\"><Apply function=\"equals\"><FieldRef field=\"{argName}\"/><Constant dataType=\"NA\">NA</Constant></Apply>{defaultValuePmml}<FieldRef field=\"{argName}\"/></Apply>"))  
+    return(glue::glue("<Apply function=\"if\"><Apply function=\"equal\"><FieldRef field=\"{argName}\"/><Constant dataType=\"NA\">NA</Constant></Apply>{defaultValuePmml}<FieldRef field=\"{argName}\"/></Apply>"))  
   }
 }
 
