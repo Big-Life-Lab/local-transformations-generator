@@ -25,7 +25,11 @@ getFirstSymbolInExpr <- function(expr, tokens) {
       firstSymbol <- getFirstSymbolInExpr(childTokensForExpr[i, ], tokens)
     }
     
-    ifelse(is.na(firstSymbol) == FALSE, break, continue)
+    if(is.na(firstSymbol) == FALSE) {
+      break
+    } else {
+      next
+    }
   }
   
   return(firstSymbol)
