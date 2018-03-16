@@ -1,5 +1,7 @@
 source(file.path(getwd(), 'R', './tokens.R'))
 source(file.path(getwd(), 'R', './token_to_pmml.R'))
+source('R/if-expr.R')
+source('R/util.R')
 
 isDataFrameShortAccessExpr <- function(exprToCheck, tokens) {
   childTokens <- getChildTokensForParent(exprToCheck, tokens)
@@ -33,21 +35,6 @@ getFirstSymbolInExpr <- function(expr, tokens) {
   }
   
   return(firstSymbol)
-}
-
-getDerivedFieldNameOrFunctionNameForTokens <- function(tokens) {
-  leftAssignToken <- tokens[which(tokens$token == LEFT_ASSIGN_TOKEN), ]
-  if(nrow(leftAssignToken) > 1) {
-    leftAssignToken <- leftAssignToken[1, ]
-  }
-  
-  firstSymbol <- getFirstSymbolInExpr(getTokensWithParent(leftAssignToken$parent, tokens)[1, ], tokens)
-
-  if(nrow(firstSymbol) == 0) {
-    stop('derivedFieldName or functionName is unkown')
-  } else {
-    return(firstSymbol$text)
-  }
 }
 
 getPmmlStringForIfToken <- function(conditionExpr, trueResultExpr, falseResultExpr, tokens) {
@@ -205,25 +192,6 @@ getPmmlStringForExpr <- function(expr, tokens) {
       return(pmmlStringForExprTokens)
     }
   }
-}
-
-getDerivedFieldPmmlStringForTokens <- function(tokens, derivedFieldName) {
-  leftAssignToken <- tokens[which(tokens$token == LEFT_ASSIGN_TOKEN), ][1, ]
-  
-  tokenWithAssignmentCode <- getTokenAfterTokenWithId(tokens, leftAssignToken$id)
-  
-  transformationsPmmlString <- ''
-  if(tokenWithAssignmentCode$token == EXPR_TOKEN) {
-    transformationsPmmlString <- getPmmlStringForExpr(getTokenAfterTokenWithId(tokens, leftAssignToken$id), tokens)    
-  } else if(tokenWithAssignmentCode$token == NUM_CONST_TOKEN | tokenWithAssignmentCode$token == STR_CONST_TOKEN) {
-    transformationsPmmlString <- getPmmlStringForConstant(tokenWithAssignmentCode)
-  } else if(tokenWithAssignmentCode$token == SYMBOL_TOKEN) {
-    transformationsPmmlString <- getPmmlStringForSymbol(tokenWithAssignmentCode)
-  } else {
-    stop(glue::glue('Unhandled token type {tokenWithAssignmentCode$token} for field {derivedFieldName}'))
-  }
-
-  return(glue::glue('<DerivedField name="{derivedFieldName}" optype="continuous">{transformationsPmmlString}</DerivedField>'))
 }
 
 getRArgumentsIntoFunctionString <- function(originalFunctionArgTokens) {
@@ -580,53 +548,57 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE, mutatedVariables = d
     if(doesTokensHaveSourceFunctionCall(tokensForCurrentParentIndex) == TRUE) {
       localTransformationString <- paste(localTransformationString, getPmmlStringFromSouceFunctionCallTokens(tokensForCurrentParentIndex, mutatedVariables), sep='')
     } else {
-      variableName <- getDerivedFieldNameOrFunctionNameForTokens(tokensForCurrentParentIndex)
-      print(variableName)
-      
-      mutateRelevantVariablesResult <- mutateRelevantVariables(variableName, tokensForCurrentParentIndex, mutatedVariables)
-      tokensForCurrentParentIndex <- mutateRelevantVariablesResult$tokens
-      mutatedVariables <- mutateRelevantVariablesResult$mutatedVariables
-      
-      # The new name for the possible mutated variable we are assigning to
-      mutatedVariableName <- getMutatedVariableName(variableName, mutatedVariables[variableName, 'mutationIteration'])
-      
-      # We are going to evaluate the code represented by the tokens in the variable tokensForCurrentParentIndex and depending on the value returned called the right pmml parsing function
-      evaluatedValue <- NA
-      tryCatch({
-        # Evaluate the line of code
-        evaluatedValue <- eval(parse(text=getParseText(tokensForCurrentParentIndex, tokensForCurrentParentIndex[1, 'id'])))
-      }, error = function(e) {
-        # If there's an error set it to NA
-        evaluatedValue <<- NA
-      })
-      
-      if(mutatedVariables[variableName, 'mutationIteration'] != 0) {
-        for(obj in ls()) {
-          if(obj == variableName) {
-            evaluatedValue = get(obj)
+      if(isIfExpr(tokensForCurrentParentIndex)) {
+        localTransformationString <- paste(localTransformationString, getPmmlStringForIfExpr(tokensForCurrentParentIndex[1, ], tokensForCurrentParentIndex), sep='')
+      } else {
+        variableName <- getDerivedFieldNameOrFunctionNameForTokens(tokensForCurrentParentIndex)
+        print(variableName)
+        
+        mutateRelevantVariablesResult <- mutateRelevantVariables(variableName, tokensForCurrentParentIndex, mutatedVariables)
+        tokensForCurrentParentIndex <- mutateRelevantVariablesResult$tokens
+        mutatedVariables <- mutateRelevantVariablesResult$mutatedVariables
+        
+        # The new name for the possible mutated variable we are assigning to
+        mutatedVariableName <- getMutatedVariableName(variableName, mutatedVariables[variableName, 'mutationIteration'])
+        
+        # We are going to evaluate the code represented by the tokens in the variable tokensForCurrentParentIndex and depending on the value returned called the right pmml parsing function
+        evaluatedValue <- NA
+        tryCatch({
+          # Evaluate the line of code
+          evaluatedValue <- eval(parse(text=getParseText(tokensForCurrentParentIndex, tokensForCurrentParentIndex[1, 'id'])))
+        }, error = function(e) {
+          # If there's an error set it to NA
+          evaluatedValue <<- NA
+        })
+        
+        if(mutatedVariables[variableName, 'mutationIteration'] != 0) {
+          for(obj in ls()) {
+            if(obj == variableName) {
+              evaluatedValue = get(obj)
+            }
           }
         }
-      }
-      
-      # If the evaluated value is a string then it's most probably a string assignment statement so call the function to create a DerivedField Pmml node
-      if(class(evaluatedValue) == 'character') {
-        localTransformationString <- paste(localTransformationString, getDerivedFieldPmmlStringForTokens(tokensForCurrentParentIndex, mutatedVariableName), sep='')
-      }
-      # if the evaluated value is a data frame
-      else if(class(evaluatedValue) == 'data.frame') {
-        # The return value is a list with the pmml string and the name of the variable to which the table was assigned
-        returnValues <- getTablePmmlStringsForDataFrame(evaluatedValue, mutatedVariableName)
         
-        # Add the pmml table string to the taxonomy string
-        taxonomy <- paste(taxonomy,returnValues[1])
-        #print(returnValues[2])
+        # If the evaluated value is a string then it's most probably a string assignment statement so call the function to create a DerivedField Pmml node
+        if(class(evaluatedValue) == 'character') {
+          localTransformationString <- paste(localTransformationString, getDerivedFieldPmmlStringForTokens(tokensForCurrentParentIndex, mutatedVariableName), sep='')
+        }
+        # if the evaluated value is a data frame
+        else if(class(evaluatedValue) == 'data.frame') {
+          # The return value is a list with the pmml string and the name of the variable to which the table was assigned
+          returnValues <- getTablePmmlStringsForDataFrame(evaluatedValue, mutatedVariableName)
+          
+          # Add the pmml table string to the taxonomy string
+          taxonomy <- paste(taxonomy,returnValues[1])
+          #print(returnValues[2])
+        }
+        else if(doesTokensHaveFunctionDefinition(tokensForCurrentParentIndex) == TRUE) {
+          localTransformationString <- paste(localTransformationString, getDefineFunctionPmmlStringForTokens(tokensForCurrentParentIndex, mutatedVariableName), sep='')
+        } else {
+          
+          localTransformationString <- paste(localTransformationString, getDerivedFieldPmmlStringForTokens(tokensForCurrentParentIndex, mutatedVariableName), sep='')
+        } 
       }
-      else if(doesTokensHaveFunctionDefinition(tokensForCurrentParentIndex) == TRUE) {
-        localTransformationString <- paste(localTransformationString, getDefineFunctionPmmlStringForTokens(tokensForCurrentParentIndex, mutatedVariableName), sep='')
-      } else {
-        
-        localTransformationString <- paste(localTransformationString, getDerivedFieldPmmlStringForTokens(tokensForCurrentParentIndex, mutatedVariableName), sep='')
-      } 
     }
 
     if(nextZeroParentIndex == nrow(tokens)) {
