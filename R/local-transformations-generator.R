@@ -156,7 +156,10 @@ getPmmlStringForExpr <- function(expr, tokens) {
         # Handle c functions by taking the arguments to the functions and concating the pmml string for each argument
         if(functionSymbolToken$text == 'c') {
           return(functionArgsSymbolTokensPmmlString)
-        } # If read.csv function call. Do nothing since we handle converting csv files to PMML tables at the beginning
+        } else if(functionSymbolToken$text == 'exists') {
+          exitsArg <- formatConstantTokenText(getTokensWithParent(exprTokensWhoseParentIsTheCurrentExprAndAreFunctionArgs[1, 'id'], tokens)[1, ])
+          return(getPmmlStringForSymbolFunctionCall(functionSymbolToken, glue::glue('<FieldRef field="{exitsArg}"/>')))
+        }# If read.csv function call. Do nothing since we handle converting csv files to PMML tables at the beginning
         else if(functionSymbolToken$text == 'read.csv') {
           
         } else {
