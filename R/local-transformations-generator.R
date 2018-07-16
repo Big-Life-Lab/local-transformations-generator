@@ -550,7 +550,10 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE, mutatedVariables = d
     #print(tokensForCurrentParentIndex);
     
     if(doesTokensHaveSourceFunctionCall(tokensForCurrentParentIndex) == TRUE) {
-      localTransformationString <- paste(localTransformationString, getPmmlStringFromSouceFunctionCallTokens(tokensForCurrentParentIndex, mutatedVariables), sep='')
+      sourceReturnValues <- getPmmlStringFromSouceFunctionCallTokens(tokensForCurrentParentIndex, mutatedVariables)
+      
+      taxonomy <- paste(taxonomy, sourceReturnValues$taxonomy, sep='')
+      localTransformationString <- paste(localTransformationString, sourceReturnValues$localTransformationString, sep='')
     } else {
       if(isIfExpr(tokensForCurrentParentIndex)) {
         localTransformationString <- paste(localTransformationString, getPmmlStringForIfExpr(tokensForCurrentParentIndex[1, ], tokensForCurrentParentIndex), sep='')
@@ -622,6 +625,6 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE, mutatedVariables = d
     
     return(paste(taxonomy, '<LocalTransformations>', localTransformationString, '</LocalTransformations>'))
   } else {
-    return(localTransformationString)
+    return(list('taxonomy' = taxonomy, 'localTransformationString' = localTransformationString))
   }
 }
