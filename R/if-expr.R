@@ -13,16 +13,26 @@ getPmmlStringForIfExpr <- function(expr, tokens, returnFinalPmmlString=TRUE) {
   
   childrenForRootExp <- getChildTokensForParent(expr, tokens)
   
-  # The expr tokens which are run when the condition for this if statement evaluates to true
+  # The expr tokens which are run when the condition for this if statement evaluates to true. The expr token which holds this code is always the 5th one in the list
   whenConditionTrueExprs <- getExprTokens(getChildTokensForParent(childrenForRootExp[5, ], tokens))
-  if(childrenForRootExp[1, 'text'] == '{') {
+  
+  isElse <- childrenForRootExp[1, 'text'] == '{'
+  # When the expr is an else statement then the first child is a { and the whenConditionTrueExprs are not at the 5 place in the array so get all the expr tokens
+  if(isElse) {
     whenConditionTrueExprs <- getExprTokens(childrenForRootExp)  
   }
   
   for(i in 1:nrow(whenConditionTrueExprs)) {
     derivedFieldName <- getDerivedFieldNameOrFunctionNameForTokens(getDescendantsOfToken(whenConditionTrueExprs[i, ], tokens))
-  
-    derivedFieldsSet[derivedFieldName, 'conditionExprId'] <- childrenForRootExp[3, 'id']
+    
+    if(!isElse) {
+      derivedFieldsSet[derivedFieldName, 'conditionExprId'] <- childrenForRootExp[3, 'id']
+    }
+    # If this is an else statement then there is no condition expr so set it to NA
+    else {
+      derivedFieldsSet[derivedFieldName, 'conditionExprId'] <- NA
+    }
+    
     derivedFieldsSet[derivedFieldName, 'exprBlockId'] <- whenConditionTrueExprs[i, 'id']
   }
   

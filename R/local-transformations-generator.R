@@ -537,7 +537,8 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE, mutatedVariables = d
 
   tokensWithComments = getParseData(parse(file = filePath))
   tokens <- filterOutCommentTokens(tokensWithComments)
-
+  #print(tokens)
+  
   nextZeroParentIndex = getIndexOfNextZeroParent(tokens)
 
   localTransformationString <- ''

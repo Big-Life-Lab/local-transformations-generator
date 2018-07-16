@@ -1,7 +1,9 @@
-if(cond == TRUE) {
-  test <- 1
-} else if(cond == FALSE) {
-  testOne <- 2
+if (cond_SQ010=='Yes'){
+  Diabetes_cat<-0
+  HeartDis_cat<-0
+} else if(cond_SQ010 == 'No') {
+  testOne <- 1
 } else {
-  test <- 3
+  Diabetes_cat<-1
+  HeartDis_cat<-1
 }
