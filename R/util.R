@@ -23,7 +23,7 @@ getDerivedFieldPmmlStringForTokens <- function(tokens, derivedFieldName, addDeri
   transformationsPmmlString <- ''
   if(tokenWithAssignmentCode$token == EXPR_TOKEN) {
     transformationsPmmlString <- getPmmlStringForExpr(getTokenAfterTokenWithId(tokens, leftAssignToken$id), tokens)    
-  } else if(tokenWithAssignmentCode$token == NUM_CONST_TOKEN | tokenWithAssignmentCode$token == STR_CONST_TOKEN) {
+  } else if(tokenWithAssignmentCode$token == NUM_CONST_TOKEN | tokenWithAssignmentCode$token == STR_CONST_TOKEN | tokenWithAssignmentCode$token == NULL_CONST_TOKEN) {
     transformationsPmmlString <- getPmmlStringForConstant(tokenWithAssignmentCode)
   } else if(tokenWithAssignmentCode$token == SYMBOL_TOKEN) {
     transformationsPmmlString <- getPmmlStringForSymbol(tokenWithAssignmentCode)

@@ -41,6 +41,9 @@ getPmmlStringForConstant <- function(constant) {
   else if(constant$text == 'NA' & constant$token == NUM_CONST_TOKEN) {
     dataType <- 'NA'
   } 
+  else if(constant$token == NULL_CONST_TOKEN) {
+    dataType <- 'NULL'
+  }
   else if(isBooleanDataType(constant)) {
     dataType <- 'boolean'
   }
