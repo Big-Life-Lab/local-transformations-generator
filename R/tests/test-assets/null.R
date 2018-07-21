@@ -1,1 +1,1 @@
-test <- NULL
+juice_cont<-ifelse(is.na(fv_juice1), NULL, fv_juice1/7)

@@ -31,6 +31,7 @@ formatConstantTokenText <- function(constant) {
 }
 
 getPmmlStringForConstant <- function(constant) {
+  print(constant)
   dataType <- 'double'
 
   formattedValue <- formatConstantTokenText(constant)

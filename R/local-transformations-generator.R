@@ -185,7 +185,7 @@ getPmmlStringForExpr <- function(expr, tokens) {
 
     if(nonExprTokenToken == SYMBOL_TOKEN) {
       return(getPmmlStringForSymbol(nonExprToken))
-    } else if(nonExprTokenToken == NUM_CONST_TOKEN || nonExprTokenToken == STR_CONST_TOKEN) {
+    } else if(nonExprTokenToken == NUM_CONST_TOKEN | nonExprTokenToken == STR_CONST_TOKEN | nonExprTokenToken == NULL_CONST_TOKEN) {
       return(getPmmlStringForConstant(nonExprToken))
     } else if(nonExprTokenToken %in% MATH_TOKENS) {
       return(getPmmlStringForMathToken(nonExprToken, pmmlStringForExprTokens))
