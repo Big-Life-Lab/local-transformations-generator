@@ -1,5 +1,6 @@
 source(file.path(getwd(), 'R', './tokens.R'))
 source(file.path(getwd(), 'R', './token_to_pmml.R'))
+source(file.path(getwd(), 'R', './pmml-custom-func.R'))
 source('R/if-expr.R')
 source('R/util.R')
 
@@ -427,15 +428,15 @@ getPmmlStringForExprTokenWithinFunction <- function(innerFunctionExprToken, orig
 
 # Get the index of the not the first but the second row in the parseData array which has the parent field set to 0
 getIndexOfNextZeroParent <- function(parseData) {
-  numZeroParents = 0
-
+  numZeroParents <- 0
+  
   for(i in 1:nrow(parseData)) {
     if(parseData[i,'parent'] == 0) {
       if(numZeroParents == 1) {
         return(i)
       }
       else {
-        numZeroParents = numZeroParents + 1
+        numZeroParents <- numZeroParents + 1
       }
     }
   }
@@ -443,12 +444,12 @@ getIndexOfNextZeroParent <- function(parseData) {
   return(nrow(parseData))
 }
 
-getPmmlStringFromSouceFunctionCallTokens <- function(sourceFunctionCallTokens, mutatedVariables) {
+getPmmlStringFromSouceFunctionCallTokens <- function(sourceFunctionCallTokens, mutatedVariables, evaluated_variables) {
   sourceFunctionCallArgExprToken <- getTokensWithParent(sourceFunctionCallTokens[1, ]$id, sourceFunctionCallTokens)[3, ]
   sourceFunctionCallArgCodeString <- getParseText(sourceFunctionCallTokens, sourceFunctionCallArgExprToken$id)
   sourceFilePath <- eval(parse(text=sourceFunctionCallArgCodeString))
 
-  return(getPmmlStringFromRFile(sourceFilePath, FALSE, mutatedVariables))
+  return(getPmmlStringFromRFile(sourceFilePath, FALSE, mutatedVariables, evaluated_variables))
 }
 
 # Generates the PMML table string for the data frame in the dataFrame argument whose name is the tableName argument
@@ -527,7 +528,8 @@ mutateRelevantVariables <- function(variableName, tokens, mutatedVariables) {
 }
 
 # mutatedVariables - Keeps track of all the variables and the number of times they have been mutated. Each row is the name of the variable and every row has one column called mutation iteration which is the number of times this variable has been mutated. When function is called for the first time should not be passed in
-getPmmlStringFromRFile <- function(filePath, srcFile=FALSE, mutatedVariables = data.frame()) {
+# evaluated_variables - A HashMap that maps the variable name from each line of code to it's evaluated value
+getPmmlStringFromRFile <- function(filePath, srcFile=FALSE, mutatedVariables = data.frame(), evaluated_variables = new.env(hash = TRUE)) {
   if(srcFile) {
     # Create directory where we store temperoray files during the addin operation
     dir.create(file.path(getwd(), 'temp'), showWarnings = FALSE)
@@ -535,11 +537,11 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE, mutatedVariables = d
     save.image(file=file.path(getwd(), 'temp/temp.RData'))
   }
 
-  tokensWithComments = getParseData(parse(file = filePath))
+  tokensWithComments <- getParseData(parse(file = filePath))
   tokens <- filterOutCommentTokens(tokensWithComments)
   #print(tokens)
   
-  nextZeroParentIndex = getIndexOfNextZeroParent(tokens)
+  nextZeroParentIndex <- getIndexOfNextZeroParent(tokens)
 
   localTransformationString <- ''
   taxonomy <- ''
@@ -547,19 +549,31 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE, mutatedVariables = d
   # Each line of code is consists of several tokens but they all start with  an expr token whose parent is 0. This is how we know that we have reached a new line of code
   while(nextZeroParentIndex != 0) {
     tokensForCurrentParentIndex = tokens[1:nextZeroParentIndex, ]
-    #print(tokensForCurrentParentIndex);
+    
+    # Get all the comments for this expression 
+    comments_for_current_expr <- getCommentTokensWithParent(
+      tokensForCurrentParentIndex[1, ]$id,
+      tokensWithComments
+    )
     
     if(doesTokensHaveSourceFunctionCall(tokensForCurrentParentIndex) == TRUE) {
-      sourceReturnValues <- getPmmlStringFromSouceFunctionCallTokens(tokensForCurrentParentIndex, mutatedVariables)
+      sourceReturnValues <- getPmmlStringFromSouceFunctionCallTokens(tokensForCurrentParentIndex, mutatedVariables, evaluated_variables)
       
       taxonomy <- paste(taxonomy, sourceReturnValues$taxonomy, sep='')
       localTransformationString <- paste(localTransformationString, sourceReturnValues$localTransformationString, sep='')
     } else {
       if(isIfExpr(tokensForCurrentParentIndex)) {
-        localTransformationString <- paste(localTransformationString, getPmmlStringForIfExpr(tokensForCurrentParentIndex[1, ], tokensForCurrentParentIndex), sep='')
+        localTransformationString <- paste(
+          localTransformationString, getPmmlStringForIfExpr(
+            tokensForCurrentParentIndex[1, ], 
+            tokensForCurrentParentIndex,
+            comments_for_current_expr,
+            evaluated_variables
+          ), 
+          sep=''
+        )
       } else {
         variableName <- getDerivedFieldNameOrFunctionNameForTokens(tokensForCurrentParentIndex)
-        print(variableName)
         
         mutateRelevantVariablesResult <- mutateRelevantVariables(variableName, tokensForCurrentParentIndex, mutatedVariables)
         tokensForCurrentParentIndex <- mutateRelevantVariablesResult$tokens
@@ -567,6 +581,7 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE, mutatedVariables = d
         
         # The new name for the possible mutated variable we are assigning to
         mutatedVariableName <- getMutatedVariableName(variableName, mutatedVariables[variableName, 'mutationIteration'])
+        print(mutatedVariableName)
         
         # We are going to evaluate the code represented by the tokens in the variable tokensForCurrentParentIndex and depending on the value returned called the right pmml parsing function
         evaluatedValue <- NA
@@ -586,9 +601,17 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE, mutatedVariables = d
           }
         }
         
+        # Set the evaluated value to it's mutated variable value in the evaluated variables environment
+        evaluated_variables[[mutatedVariableName]] <- evaluatedValue
+        
         # If the evaluated value is a string then it's most probably a string assignment statement so call the function to create a DerivedField Pmml node
         if(class(evaluatedValue) == 'character') {
-          localTransformationString <- paste(localTransformationString, getDerivedFieldPmmlStringForTokens(tokensForCurrentParentIndex, mutatedVariableName), sep='')
+          localTransformationString <- paste(
+            localTransformationString, 
+            getDerivedFieldPmmlStringForTokens(
+              tokensForCurrentParentIndex, mutatedVariableName, comments_for_current_expr, evaluated_variables), 
+            sep=''
+          )
         }
         # if the evaluated value is a data frame
         else if(class(evaluatedValue) == 'data.frame') {
@@ -602,8 +625,8 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE, mutatedVariables = d
         else if(doesTokensHaveFunctionDefinition(tokensForCurrentParentIndex) == TRUE) {
           localTransformationString <- paste(localTransformationString, getDefineFunctionPmmlStringForTokens(tokensForCurrentParentIndex, mutatedVariableName), sep='')
         } else {
-          
-          localTransformationString <- paste(localTransformationString, getDerivedFieldPmmlStringForTokens(tokensForCurrentParentIndex, mutatedVariableName), sep='')
+          localTransformationString <- paste(localTransformationString, getDerivedFieldPmmlStringForTokens(
+            tokensForCurrentParentIndex, mutatedVariableName, comments_for_current_expr, evaluated_variables), sep='')
         } 
       }
     }
@@ -612,9 +635,9 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE, mutatedVariables = d
       break
     }
 
-    tokens = tokens[nextZeroParentIndex:nrow(tokens), ]
+    tokens <- tokens[nextZeroParentIndex:nrow(tokens), ]
 
-    nextZeroParentIndex = getIndexOfNextZeroParent(tokens)
+    nextZeroParentIndex <- getIndexOfNextZeroParent(tokens)
   }
 
   if(srcFile == TRUE) {

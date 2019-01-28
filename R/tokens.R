@@ -5,7 +5,7 @@ NUM_CONST_TOKEN <- 'NUM_CONST'
 STR_CONST_TOKEN <- 'STR_CONST'
 NULL_CONST_TOKEN <- 'NULL_CONST'
 MATH_TOKENS <- c("'+'", "'-'", "'*'", "'/'")
-
+COMMENT_TOKEN <- 'COMMENT'
 EQUAL_TO_TOKEN <- 'EQ'
 LESS_THAN_OR_EQUAL_TO_TOKEN <- 'LE'
 GREATER_THAN_OR_EQUAL_TO_TOKEN <- 'GE'
@@ -47,6 +47,12 @@ getSymbolFormalsTokens <- function(tokens) {
 
 getTokensWithParent <- function(parent, tokens) {
   return(tokens[which(tokens$parent==parent), ])
+}
+
+getCommentTokensWithParent <- function(parent_id, tokens) {
+  neg_parent_id <- parent_id*-1;
+  
+  return(tokens[which(tokens$parent == neg_parent_id & tokens$token == COMMENT_TOKEN), ])
 }
 
 getTokenWithId <- function(id, tokens) {

@@ -5,7 +5,7 @@ isIfExpr <- function(tokens) {
   return(tokens[2, 'token'] == 'IF')
 }
 
-getPmmlStringForIfExpr <- function(expr, tokens, returnFinalPmmlString=TRUE) {
+getPmmlStringForIfExpr <- function(expr, tokens, comment_tokens, evaluated_variables, returnFinalPmmlString=TRUE) {
   derivedFieldsSet <- data.frame();
   # The index of the dataframe is the derived field name
   # conditionExprIds: String which has the ids of the expr that holds the condition code which when true the corresponsing true code sets this derived field. Each expr id is seperated by a comma
@@ -38,13 +38,25 @@ getPmmlStringForIfExpr <- function(expr, tokens, returnFinalPmmlString=TRUE) {
   
   elsePmmlStrings <- NA
   if(!is.na(childrenForRootExp[6, ]) & childrenForRootExp[6, 'token'] == 'ELSE') {
-    elsePmmlStrings <- getPmmlStringForIfExpr(childrenForRootExp[7, ], tokens, FALSE)
+    elsePmmlStrings <- getPmmlStringForIfExpr(
+      childrenForRootExp[7, ],
+      tokens, 
+      comment_tokens,
+      evaluated_variables,
+      FALSE
+    )
   }
   
   derivedFieldNameWithPmmlString <- data.frame()
   for(derivedFieldName in row.names(derivedFieldsSet)) {
     conditionPmmlString <- getPmmlStringForExpr(getExprWithIdInTokens(derivedFieldsSet[derivedFieldName, 'conditionExprId'], tokens), tokens)
-    whenTruePmmlString <- getDerivedFieldPmmlStringForTokens(getDescendantsOfToken(getExprWithIdInTokens(derivedFieldsSet[derivedFieldName, 'exprBlockId'], tokens), tokens), derivedFieldName, FALSE)
+    whenTruePmmlString <- getDerivedFieldPmmlStringForTokens(
+      getDescendantsOfToken(getExprWithIdInTokens(derivedFieldsSet[derivedFieldName, 'exprBlockId'], tokens), tokens), 
+      derivedFieldName, 
+      comment_tokens,
+      evaluated_variables,
+      FALSE
+    )
     whenFalsePmmlString <- glue::glue('<FieldRef field="{derivedFieldName}"/>')
     if(!(is.na(elsePmmlStrings) | (derivedFieldName %in% row.names(elsePmmlStrings)) == FALSE)) {
       whenFalsePmmlString <- elsePmmlStrings[derivedFieldName, 'pmmlString']
