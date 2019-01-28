@@ -3,7 +3,7 @@ get_custom_pmml_func_comment_token <- function(comment_tokens) {
   custom_pmml_function_regex <- "#[ ]*@pmml_custom_func[ ]*\\(.+\\)"
 
   return(
-    commentTokens[which(grepl(custom_pmml_function_regex, comment_tokens$text)), ][1, ]
+    comment_tokens[which(grepl(custom_pmml_function_regex, comment_tokens$text)), ][1, ]
     )
 }
 
