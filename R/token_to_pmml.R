@@ -26,7 +26,7 @@ formatConstantTokenText <- function(constant) {
   else if(isBooleanDataType(constant)) {
     formattedValue <- tolower(constant$text)
   }
-  
+
   return(formattedValue)
 }
 
@@ -34,13 +34,13 @@ getPmmlStringForConstant <- function(constant) {
   dataType <- 'double'
 
   formattedValue <- formatConstantTokenText(constant)
-  
+
   if(constant$token == STR_CONST_TOKEN) {
     dataType <- 'string'
   }
   else if(constant$text == 'NA' & constant$token == NUM_CONST_TOKEN) {
     dataType <- 'NA'
-  } 
+  }
   else if(constant$token == NULL_CONST_TOKEN) {
     dataType <- 'NULL'
   }
@@ -58,7 +58,8 @@ getPmmlStringForLogicalOperator <- function(logicalToken, nestedPmmlString) {
 
   if(logicalTokenToken == AND_TOKEN | logicalTokenToken == AND2_TOKEN) {
     functionType <- 'and'
-  } else if(logicalTokenToken == OR_TOKEN) {
+  } else if(logicalTokenToken %in% OR_TOKENS) {
+    print('inside')
     functionType <- 'or'
   } else if(logicalTokenToken == EQUAL_TO_TOKEN) {
     functionType <- 'equal'

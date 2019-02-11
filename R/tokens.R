@@ -13,10 +13,10 @@ GREATER_THAN_TOKEN <- 'GT'
 LESS_THAN_TOKEN <- 'LT'
 AND_TOKEN <- 'AND'
 AND2_TOKEN <- 'AND2'
-OR_TOKEN <- 'OR'
+OR_TOKENS <- c('OR', 'OR2')
 NOT_EQUAL_TO_TOKEN <- 'NE'
 NOT_TOKEN <- "'!'"
-LOGICAL_TOKENS <- c(EQUAL_TO_TOKEN, LESS_THAN_OR_EQUAL_TO_TOKEN, GREATER_THAN_OR_EQUAL_TO_TOKEN, GREATER_THAN_TOKEN, LESS_THAN_TOKEN, AND_TOKEN, OR_TOKEN, NOT_EQUAL_TO_TOKEN, NOT_TOKEN, AND2_TOKEN)
+LOGICAL_TOKENS <- c(EQUAL_TO_TOKEN, LESS_THAN_OR_EQUAL_TO_TOKEN, GREATER_THAN_OR_EQUAL_TO_TOKEN, GREATER_THAN_TOKEN, LESS_THAN_TOKEN, AND_TOKEN, OR_TOKENS, NOT_EQUAL_TO_TOKEN, NOT_TOKEN, AND2_TOKEN)
 
 IF_TOKEN <- 'IF'
 SYMBOL_FUNCTION_CALL_TOKEN <- 'SYMBOL_FUNCTION_CALL'
@@ -30,7 +30,7 @@ SPECIAL_TOKEN <- 'SPECIAL'
 COMMENT_TOKEN <- 'COMMENT'
 
 isSymbolToken <- function(token) {
-  return(token$token == SYMBOL_TOKEN)  
+  return(token$token == SYMBOL_TOKEN)
 }
 
 getExprWithIdInTokens <- function(id, tokens) {
@@ -51,7 +51,7 @@ getTokensWithParent <- function(parent, tokens) {
 
 getCommentTokensWithParent <- function(parent_id, tokens) {
   neg_parent_id <- parent_id*-1;
-  
+
   return(tokens[which(tokens$parent == neg_parent_id & tokens$token == COMMENT_TOKEN), ])
 }
 
@@ -199,14 +199,14 @@ isLeftAssignmentSymbolToken <- function(symbolToken, tokens) {
 # Returns the token row that comes after the token with id the same as the id arg
 getTokenAfterTokenWithId <- function(tokens, id) {
   tokenIndex <- NA
-  
+
   for(i in 1:nrow(tokens)) {
     if(tokens[i, 'id'] == id) {
       tokenIndex <- i
       break
     }
   }
-  
+
   if(is.na(tokenIndex)) {
     stop(glue::glue('No token with id {id} found'))
   } else {
