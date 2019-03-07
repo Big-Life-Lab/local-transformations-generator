@@ -41,5 +41,5 @@ get_pmml_node_for_z_score_func <- function(
   mean <- reference_table[which(reference_table$variable == variable), ]$mean
   sd <- reference_table[which(reference_table$variable == variable), ]$sd
   
-  return(glue::glue('<X-Zscore mean="{mean}" sd="{sd}" />'))
+  return(glue::glue('<Apply function="zScore"><Constant dataType="double">{mean}</Constant><Constant dataType="double">{sd}</Constant><FieldRef field="{variable}"/></Apply>'))
 }
