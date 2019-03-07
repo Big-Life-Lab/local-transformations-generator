@@ -15,5 +15,3 @@ testTransformationForPmmlCustomFunc <- function() {
     print('test-pmml-custom-func.R: testTransformationForPmmlCustomFunc test success')
   }
 }
-
-testTransformationForPmmlCustomFunc()
