@@ -1,7 +1,7 @@
 source(file.path(getwd(), 'R/local-transformations-generator.R'))
 
 testMutation <- function() {
-  expectedValue <- ' <LocalTransformations> <DerivedField name="testOne" optype="continuous"><Constant dataType="double">1</Constant></DerivedField><DerivedField name="testOne_Mutated_1" optype="continuous"><FieldRef field="testOne"/></DerivedField><DerivedField name="testTwo" optype="continuous"><FieldRef field="testOne_Mutated_1"/></DerivedField> </LocalTransformations>'
+  expectedValue <- ' <LocalTransformations> <DerivedField name=\"ALWDWKY_Mutated_1\" optype=\"continuous\"><FieldRef field=\"ALWDWKY\"/></DerivedField><DerivedField name=\"ALWDWKY_Mutated_2\" optype=\"continuous\"><Apply function=\"+\"><FieldRef field=\"ALWDWKY_Mutated_1\"/><Constant dataType=\"double\">1</Constant></Apply></DerivedField><DerivedField name=\"ALWDWKY_Mutated_3\" optype=\"continuous\"><Apply function=\"+\"><FieldRef field=\"ALWDWKY_Mutated_2\"/><Constant dataType=\"double\">2</Constant></Apply></DerivedField><DerivedField name=\"SMKDSTY\" optype=\"continuous\"><FieldRef field=\"ALWDWKY_Mutated_3\"/></DerivedField> </LocalTransformations>'
   actualValue <- getPmmlStringFromRFile(file.path(getwd(), 'R/tests/test-assets/mutation.R'), TRUE)
   
   if(expectedValue != actualValue) {

@@ -1,3 +1,4 @@
-testOne <- 1
-testOne <- testOne
-testTwo <- testOne
+ALWDWKY <- ALWDWKY
+ALWDWKY <- ALWDWKY + 1
+ALWDWKY <- ALWDWKY + 2
+SMKDSTY <- ALWDWKY
