@@ -679,7 +679,7 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE, mutatedVariables = d
     # Remove the file which had the workspace objects
     file.remove(file.path(getwd(), 'temp/temp.RData'))
 
-    return(paste(taxonomy, '<LocalTransformations>', localTransformationString, '</LocalTransformations>'))
+    return(paste(taxonomy, '<PMML><LocalTransformations>', localTransformationString, '</LocalTransformations></PMML>'))
   } else {
     return(list('taxonomy' = taxonomy, 'localTransformationString' = localTransformationString))
   }
