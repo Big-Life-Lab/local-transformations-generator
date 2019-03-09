@@ -1,7 +1,7 @@
 source(file.path(getwd(), 'R/local-transformations-generator.R'))
 
 testTransformationForExists <- function() {
-  expectedPmml <- ' <LocalTransformations> <DerivedField name="test" optype="continuous"><Apply function="exists"><FieldRef field="testOne"/></Apply></DerivedField> </LocalTransformations>'
+  expectedPmml <- '<PMML>  <LocalTransformations> <DerivedField name="test" optype="continuous"><Apply function="exists"><FieldRef field="testOne"/></Apply></DerivedField> </LocalTransformations></PMML>'
   
   actualPmml <- getPmmlStringFromRFile(file.path(getwd(), 'R/tests/test-assets/exists.R'), TRUE)
   

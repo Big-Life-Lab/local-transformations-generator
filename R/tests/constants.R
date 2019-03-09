@@ -1,7 +1,7 @@
 source(file.path(getwd(), 'R/local-transformations-generator.R'))
 
 testConstants <- function() {
-  expectedPmml <- ' <LocalTransformations> <DerivedField name="stringConstant" optype="continuous"><Constant dataType="string">testString</Constant></DerivedField> </LocalTransformations>'
+  expectedPmml <- '<PMML>  <LocalTransformations> <DerivedField name="stringConstant" optype="continuous"><Constant dataType="string">testString</Constant></DerivedField> </LocalTransformations></PMML>'
   
   actualPmml <- getPmmlStringFromRFile(file.path('R/tests/test-assets/constants.R'), TRUE)
   

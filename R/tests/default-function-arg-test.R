@@ -15,7 +15,7 @@ testDefaultFunctionArg <- function() {
   defineFunctionDefaultArgTwo <- glue::glue("<DefineFunction name=\"default(argTwo)\"> {parameterFields}{getDefineFunctionForDefault('argTwo', 'a', 'string')}</DefineFunction>")
   defineFunctionTestFunc <- glue::glue("<DefineFunction name=\"testFunc\"> {parameterFields}<Apply function=\"+\"><Apply function=\"default(argOne)\"><FieldRef field=\"argOne\"/><FieldRef field=\"argTwo\"/></Apply><Apply function=\"default(argTwo)\"><FieldRef field=\"argOne\"/><FieldRef field=\"argTwo\"/></Apply></Apply></DefineFunction>")
   
-  expectedPmml <- paste(' <LocalTransformations> ', glue::glue('{defineFunctionDefaultArgOne}{defineFunctionDefaultArgTwo}{defineFunctionTestFunc}'), ' </LocalTransformations>', sep='')
+  expectedPmml <- paste('<PMML>  <LocalTransformations> ', glue::glue('{defineFunctionDefaultArgOne}{defineFunctionDefaultArgTwo}{defineFunctionTestFunc}'), ' </LocalTransformations></PMML>', sep='')
   actualPmml <- getPmmlStringFromRFile(file.path(getwd(), 'R/tests/test-assets/default-function-arg.R'), TRUE)
   
   if(expectedPmml != actualPmml) {
