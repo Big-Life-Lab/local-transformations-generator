@@ -594,6 +594,7 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE, mutatedVariables = d
 
       taxonomy <- paste(taxonomy, sourceReturnValues$taxonomy, sep='')
       localTransformationString <- paste(localTransformationString, sourceReturnValues$localTransformationString, sep='')
+      mutatedVariables <- sourceReturnValues$mutatedVariables
     } else {
       if(isIfExpr(tokensForCurrentParentIndex)) {
         localTransformationString <- paste(
@@ -681,6 +682,6 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE, mutatedVariables = d
 
     return(paste('<PMML>', taxonomy, '<LocalTransformations>', localTransformationString, '</LocalTransformations></PMML>'))
   } else {
-    return(list('taxonomy' = taxonomy, 'localTransformationString' = localTransformationString))
+    return(list('taxonomy' = taxonomy, 'localTransformationString' = localTransformationString, mutatedVariables = mutatedVariables))
   }
 }
