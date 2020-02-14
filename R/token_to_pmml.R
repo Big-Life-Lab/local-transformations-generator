@@ -113,3 +113,7 @@ getPmmlStringForDefineFunction <- function(functionName, functionArgsTokens, fun
   return(glue::glue('<DefineFunction name="{functionName}">{getPmmlStringForFunctionArgTokens(functionArgsTokens)}{functionBodyPmmlString}</DefineFunction>'))
 }
 
+getPmmlStringForColonToken <- function(nestedPmmlString) {
+  return(glue::glue('<Apply function="colonOperator">{nestedPmmlString}</Apply>'))
+}
+

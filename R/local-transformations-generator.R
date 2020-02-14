@@ -192,7 +192,10 @@ getPmmlStringForExpr <- function(expr, tokens) {
       return(getPmmlStringForMathToken(nonExprToken, pmmlStringForExprTokens))
     } else if(nonExprTokenToken %in% LOGICAL_TOKENS) {
       return(getPmmlStringForLogicalOperator(nonExprToken, pmmlStringForExprTokens))
-    } else {
+    } else if(nonExprToken$token == "':'") {
+      return(getPmmlStringForColonToken(pmmlStringForExprTokens))
+    } 
+    else {
       return(pmmlStringForExprTokens)
     }
   }
@@ -572,6 +575,7 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE, mutatedVariables = d
 
   tokensWithComments <- getParseData(parse(file = filePath))
   tokens <- filterOutCommentTokens(tokensWithComments)
+  ##### DEBUG
   #print(tokens)
 
   nextZeroParentIndex <- getIndexOfNextZeroParent(tokens)
