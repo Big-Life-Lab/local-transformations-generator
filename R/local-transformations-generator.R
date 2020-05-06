@@ -3,6 +3,8 @@ source(file.path(getwd(), 'R', './token_to_pmml.R'))
 source(file.path(getwd(), 'R', './pmml-custom-func.R'))
 source('R/if-expr.R')
 source('R/util.R')
+source('R/data-frame.R')
+source('R/dollar-operator.R')
 
 isDataFrameShortAccessExpr <- function(exprToCheck, tokens) {
   childTokens <- getChildTokensForParent(exprToCheck, tokens)
@@ -63,6 +65,7 @@ getPmmlStringForExpr <- function(expr, tokens) {
   tokensWhoseParentIsTheCurrentExprHasOneRow <- (nrow(tokensWhoseParentIsTheCurrentExpr) != 0)
 
   childSpecialTokensForCurrentExpr <- getSpecialTokens(getChildTokensForParent(expr, tokens))
+
   if(nrow(childSpecialTokensForCurrentExpr) != 0) {
     if(childSpecialTokensForCurrentExpr[1, 'text'] == '%in%') {
       childExprTokens <- getExprTokens(getChildTokensForParent(expr, tokens))
@@ -75,59 +78,13 @@ getPmmlStringForExpr <- function(expr, tokens) {
       stop(glue::glue('Unhandled special symbol {childSpecialTokensForCurrentExpr[1, "text"]}'))
     }
   }
-  # This means this expression has table access expression which looks like Table[Table$Name == 'Age_cont', ]$Mean_female
-  else if(!is.na(tokensWhoseParentIsTheCurrentExpr[2, ]$token) & tokensWhoseParentIsTheCurrentExpr[2, ]$token == "'$'") {
-    # Get the name of the column in the table which is the output column for this table access
-    outputColumnName <- tokensWhoseParentIsTheCurrentExpr[3, 'text']
-
-    # Get the expression tokens which has the code for getting the row for table from which we will access the outputColumn
-    exprTokenWithTableAccessConditions <- tokensWhoseParentIsTheCurrentExpr[1, ]
-    # Get the child tokens of the above expr token
-    childsTokensForExprTokenWithTableAccessConditions <- getChildTokensForParent(exprTokenWithTableAccessConditions, tokens)
-
-    # The first token in the above child tokens is an expressions which has the name of the table we want to search
-    exprTokenWithTableName <- childsTokensForExprTokenWithTableAccessConditions[1, ]
-    # Get the name of the table
-    tableName <- getChildTokensForParent(exprTokenWithTableName, tokens)[1, ]$text
-
-    # Get the expr token which has the table search conditions like tableName$col == 'a' along with the AND between the conditions
-    exprTokenWithTableEntireSearchConditions <- childsTokensForExprTokenWithTableAccessConditions[3, ]
-
-    # Get the descendants of the expr token with table entires. It will have the information we need for the FieldColumnPairs
-    tokensToUseForFieldColumnPairStrings <- getDescendantsOfToken(exprTokenWithTableEntireSearchConditions, tokens)
-
-    # The string which at the end of the following loop will have all the FieldColumnPairs
-    fieldColumnPairs <- ''
-
-    # Go though the descendants
-    for(i in 1:nrow(tokensToUseForFieldColumnPairStrings)) {
-      # If the token is op type $
-      if(tokensToUseForFieldColumnPairStrings[i, 'token'] == "'$'") {
-        # The token  after this is the column referenced in the table
-        column <- tokensToUseForFieldColumnPairStrings[i+1, ]
-        # The token 2 after this is the field or constant we need to compare the column to
-        fieldOrConstant <- tokensToUseForFieldColumnPairStrings[i+3, ]
-
-        # Make the column pmml string
-        columnString <- glue::glue('column="{column$text}"')
-        # Make the field or constant pmml string
-        fieldOrConstantString <- ifelse(isSymbolToken(fieldOrConstant), glue::glue('field="{fieldOrConstant$text}"'), glue::glue('constant="{formatConstantTokenText(fieldOrConstant)}"'))
-        # Make the FieldColumnPair string and append it to the master list
-        fieldColumnPairs <- paste(fieldColumnPairs, glue::glue('<FieldColumnPair {columnString} {fieldOrConstantString}/>'))
-      }
+  else if(dollar_op.is_expr(expr, tokens)) {
+    if(data_frame.is_expr(tokensWhoseParentIsTheCurrentExpr[1, ], tokens)) {
+      return(dollar_op.get_pmml_node(
+        expr, tokens, data_frame.get_pmml_node(tokensWhoseParentIsTheCurrentExpr[1, ], tokens)))
     }
-
-    # Return the MapValues pmml string
-    return(glue::glue('<MapValues outputColumn="{outputColumnName}">{fieldColumnPairs}<TableLocator location="taxonomy" name="{tableName}"/></MapValues>'))
-  }
-  # This is a data frame access that looks like Table['Age_cont', 'Mean_male']
-  else if(isDataFrameShortAccessExpr(expr, tokens)) {
-    outputColumnName <- formatSymbolName(getChildTokensForParent(tokensWhoseParentIsTheCurrentExpr[5, ], tokens)[1, ])
-    indexColumnValue <- formatSymbolName(getChildTokensForParent(tokensWhoseParentIsTheCurrentExpr[3, ], tokens)[1, ])
-    tableName <- formatSymbolName(getChildTokensForParent(tokensWhoseParentIsTheCurrentExpr[1, ], tokens)[1, ])
-
-    fieldColumnPairString <- glue::glue('<FieldColumnPair column="index" constant="{indexColumnValue}"/>')
-    return(glue::glue('<MapValues outputColumn="{outputColumnName}">{fieldColumnPairString}<TableLocator location="taxonomy" name="{tableName}"/></MapValues>'))
+  } else if(data_frame.is_expr(expr, tokens)) {
+    return(data_frame.get_pmml_node(expr, tokens))
   }
   else if(tokensWhoseParentIsTheCurrentExprHasOneRow & tokensWhoseParentIsTheCurrentExpr[1, ]$token == IF_TOKEN) {
     conditionExpr <- tokensWhoseParentIsTheCurrentExpr[3, ]
@@ -447,12 +404,12 @@ getIndexOfNextZeroParent <- function(parseData) {
   return(nrow(parseData))
 }
 
-getPmmlStringFromSouceFunctionCallTokens <- function(sourceFunctionCallTokens, mutatedVariables, evaluated_variables) {
+getPmmlStringFromSouceFunctionCallTokens <- function(sourceFunctionCallTokens, mutatedVariables, evaluated_variables, row_vars) {
   sourceFunctionCallArgExprToken <- getTokensWithParent(sourceFunctionCallTokens[1, ]$id, sourceFunctionCallTokens)[3, ]
   sourceFunctionCallArgCodeString <- getParseText(sourceFunctionCallTokens, sourceFunctionCallArgExprToken$id)
   sourceFilePath <- eval(parse(text=sourceFunctionCallArgCodeString))
 
-  return(getPmmlStringFromRFile(sourceFilePath, FALSE, mutatedVariables, evaluated_variables))
+  return(getPmmlStringFromRFile(sourceFilePath, FALSE, mutatedVariables, evaluated_variables, row_vars))
 }
 
 # Generates the PMML table string for the data frame in the dataFrame argument whose name is the tableName argument
@@ -565,7 +522,9 @@ mutateRelevantVariables <- function(variableName, tokens, mutatedVariables) {
 
 # mutatedVariables - Keeps track of all the variables and the number of times they have been mutated. Each row is the name of the variable and every row has one column called mutation iteration which is the number of times this variable has been mutated. When function is called for the first time should not be passed in
 # evaluated_variables - A HashMap that maps the variable name from each line of code to it's evaluated value
-getPmmlStringFromRFile <- function(filePath, srcFile=FALSE, mutatedVariables = data.frame(), evaluated_variables = new.env(hash = TRUE)) {
+# row_vars - The list of variables that have been assigned to a row from a data frame. PMML does not support object dataTypes so we will keep track of these vars and if we encounter code that accesses a column from this row
+#            we will interpolate the code to get the row into the PMML for that derived field
+getPmmlStringFromRFile <- function(filePath, srcFile=FALSE, mutatedVariables = data.frame(), evaluated_variables = new.env(hash = TRUE), row_vars = data.frame()) {
   if(srcFile) {
     # Create directory where we store temperoray files during the addin operation
     dir.create(file.path(getwd(), 'temp'), showWarnings = FALSE)
@@ -662,9 +621,31 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE, mutatedVariables = d
         }
         else if(doesTokensHaveFunctionDefinition(tokensForCurrentParentIndex) == TRUE) {
           localTransformationString <- paste(localTransformationString, getDefineFunctionPmmlStringForTokens(tokensForCurrentParentIndex, mutatedVariableName), sep='')
-        } else {
-          localTransformationString <- paste(localTransformationString, getDerivedFieldPmmlStringForTokens(
-            tokensForCurrentParentIndex, mutatedVariableName, comments_for_current_expr, evaluated_variables), sep='')
+        } 
+        else {
+          assign_expr_token <- getTokenWithAssignmentCode(tokensForCurrentParentIndex)
+          child_tokens <- getChildTokensForParent(assign_expr_token, tokensForCurrentParentIndex)
+          possible_row_var <- getChildTokensForParent(child_tokens[1, ], tokensForCurrentParentIndex)[1, ]
+          
+          # If this is an expression to get the row from a data frame and store it in a variable for eg. table[col1 == 'val' & col2 == 'val2', ]
+          # We will add it to the table of row accesses and use it when we encounter an expression that accesses the column from this row
+          if(dollar_op.is_expr(assign_expr_token, tokensForCurrentParentIndex) == FALSE & 
+             data_frame.is_expr(assign_expr_token, tokensForCurrentParentIndex) & data_frame.is_wildcard_expr(assign_expr_token, tokensForCurrentParentIndex)) {
+            row_vars <- data.frame(
+              row_name = c(mutatedVariableName),
+              pmml = c(data_frame.get_pmml_node(assign_expr_token, tokensForCurrentParentIndex))
+            )
+          } 
+          # If this is an expression to access the column from a row and store it in a variable for eg. var1 <- row$col1
+          else if(dollar_op.is_expr(assign_expr_token, tokensForCurrentParentIndex) & isSymbolToken(possible_row_var)) {
+            row_var_name <- possible_row_var$text
+            derived_field_pmml_str <- glue::glue(
+              '<DerivedField name="{mutatedVariableName}" optype="continuous">{dollar_op.get_pmml_node(assign_expr_token, tokensForCurrentParentIndex, row_vars[row_vars$row_name == row_var_name, "pmml"])}</DerivedField>')
+            localTransformationString <- paste(localTransformationString, derived_field_pmml_str, sep = '')
+          } else {
+            localTransformationString <- paste(localTransformationString, getDerivedFieldPmmlStringForTokens(
+              tokensForCurrentParentIndex, mutatedVariableName, comments_for_current_expr, evaluated_variables), sep='')
+          }
         }
       }
     }

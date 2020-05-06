@@ -19,7 +19,7 @@ getDerivedFieldNameOrFunctionNameForTokens <- function(tokens) {
 getDerivedFieldPmmlStringForTokens <- function(tokens, derivedFieldName, comment_tokens, evaluatedVariables, addDerivedField=TRUE) {
   leftAssignToken <- tokens[which(tokens$token == LEFT_ASSIGN_TOKEN), ][1, ]
   
-  tokenWithAssignmentCode <- getTokenAfterTokenWithId(tokens, leftAssignToken$id)
+  tokenWithAssignmentCode <- getTokenWithAssignmentCode(tokens)
   
   transformationsPmmlString <- ''
   
@@ -50,4 +50,10 @@ getDerivedFieldPmmlStringForTokens <- function(tokens, derivedFieldName, comment
   } else {
     return(transformationsPmmlString)
   }
+}
+
+getTokenWithAssignmentCode <- function(tokens) {
+  leftAssignToken <- tokens[which(tokens$token == LEFT_ASSIGN_TOKEN), ][1, ]
+  
+  return(getTokenAfterTokenWithId(tokens, leftAssignToken$id))
 }
