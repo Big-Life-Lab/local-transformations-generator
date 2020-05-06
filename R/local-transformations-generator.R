@@ -408,7 +408,7 @@ getPmmlStringFromSouceFunctionCallTokens <- function(sourceFunctionCallTokens, m
   sourceFunctionCallArgExprToken <- getTokensWithParent(sourceFunctionCallTokens[1, ]$id, sourceFunctionCallTokens)[3, ]
   sourceFunctionCallArgCodeString <- getParseText(sourceFunctionCallTokens, sourceFunctionCallArgExprToken$id)
   sourceFilePath <- eval(parse(text=sourceFunctionCallArgCodeString))
-
+  
   return(getPmmlStringFromRFile(sourceFilePath, FALSE, mutatedVariables, evaluated_variables, row_vars))
 }
 
@@ -532,7 +532,7 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE, mutatedVariables = d
     save.image(file=file.path(getwd(), 'temp/temp.RData'))
   }
 
-  tokensWithComments <- getParseData(parse(file = filePath))
+  tokensWithComments <- getParseData(parse(file = filePath, keep.source = TRUE))
   tokens <- filterOutCommentTokens(tokensWithComments)
   ##### DEBUG
   #print(tokens)
