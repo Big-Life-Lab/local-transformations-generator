@@ -59,7 +59,6 @@ getPmmlStringForLogicalOperator <- function(logicalToken, nestedPmmlString) {
   if(logicalTokenToken == AND_TOKEN | logicalTokenToken == AND2_TOKEN) {
     functionType <- 'and'
   } else if(logicalTokenToken %in% OR_TOKENS) {
-    print('inside')
     functionType <- 'or'
   } else if(logicalTokenToken == EQUAL_TO_TOKEN) {
     functionType <- 'equal'
@@ -90,7 +89,7 @@ getPmmlStringForMathToken <- function(mathToken, nestedPmmlString) {
 
 getPmmlStringForSymbolFunctionCall <- function(symbolFunctionCallToken, nestedPmmlString) {
   functionType <- symbolFunctionCallToken$text
-
+  
   return(glue::glue('<Apply function="{functionType}">{nestedPmmlString}</Apply>'))
 }
 

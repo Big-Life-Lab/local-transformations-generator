@@ -22,6 +22,23 @@ data_frame.is_wildcard_expr <- function(expr, tokens) {
   return(nrow(expr_child_tokens) != 3)
 }
 
+# Check whether this expression is of the type table[table$row == var1, ]$col
+data_frame.is_col_access <- function(expr, tokens) {
+  if(dollar_op.is_expr(expr, tokens) == FALSE) {
+    return(FALSE)
+  }
+  
+  child_expr_tokens <- getExprTokens(
+    getChildTokensForParent(expr, tokens))
+  
+  return(data_frame.is_expr(child_expr_tokens[1, ], tokens))
+}
+
+# Check whether this expression is of the type table[table$row == var1, ]
+data_frame.is_row_access <- function(expr, tokens) {
+  return(dollar_op.is_expr(expr, tokens) == TRUE & data_frame.is_col_access(expr, tokens) == FALSE)
+}
+
 data_frame.get_pmml_node <- function(expr, tokens) {
   child_tokens <- getChildTokensForParent(expr, tokens)
   expr_child_tokens <- getExprTokens(child_tokens)

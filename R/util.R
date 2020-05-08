@@ -36,7 +36,27 @@ getDerivedFieldPmmlStringForTokens <- function(tokens, derivedFieldName, comment
     )
   }
   else if(tokenWithAssignmentCode$token == EXPR_TOKEN) {
-    transformationsPmmlString <- getPmmlStringForExpr(getTokenAfterTokenWithId(tokens, leftAssignToken$id), tokens)    
+    if(function_call.is_row_function_call_expr(tokenWithAssignmentCode, tokens)) {
+      gl_row_function <- globals.get_row_function(function_call.get_function_name_token(tokenWithAssignmentCode, tokens)$text)
+      func_arg_expr_tokens <- function_call.get_function_arg_expr_tokens(tokenWithAssignmentCode, tokens)
+      non_row_func_arg_expr_tokens <- func_arg_expr_tokens
+      for(i in 1:nrow(func_arg_expr_tokens)) {
+        if(gl_row_function$args[i] %in% gl_row_function$row_args) {
+          non_row_func_arg_expr_tokens <- non_row_func_arg_expr_tokens[non_row_func_arg_expr_tokens$id != func_arg_expr_tokens[i, ]$id, ]
+        }
+      }
+      
+      func_args_pmml_str <- function_call.get_pmml_str_for_arg_exprs(non_row_func_arg_expr_tokens, tokens)
+      
+      function_call_symbol_token <- function_call.get_function_name_token(tokenWithAssignmentCode, tokens)
+      
+      transformationsPmmlString <- getPmmlStringForSymbolFunctionCall(
+        function_call_symbol_token,
+        func_args_pmml_str
+      )
+    } else {
+      transformationsPmmlString <- getPmmlStringForExpr(getTokenAfterTokenWithId(tokens, leftAssignToken$id), tokens)   
+    }
   } else if(tokenWithAssignmentCode$token == NUM_CONST_TOKEN | tokenWithAssignmentCode$token == STR_CONST_TOKEN | tokenWithAssignmentCode$token == NULL_CONST_TOKEN) {
     transformationsPmmlString <- getPmmlStringForConstant(tokenWithAssignmentCode)
   } else if(tokenWithAssignmentCode$token == SYMBOL_TOKEN) {

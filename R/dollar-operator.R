@@ -12,3 +12,18 @@ dollar_op.get_pmml_node <- function(expr, tokens, innerText) {
   
   return(glue::glue('<MapValues outputColumn="{output_col}">{innerText}</MapValues>'))
 } 
+
+# Get the variable which this $ operator is being used on
+# For eg, for row$col, this function would return row
+dollar_op.get_var <- function(expr, tokens) {
+  symbol_token <- getChildTokensForParent(
+    getChildTokensForParent(expr, tokens)[1, ], tokens)[1, ]
+  
+  if(isSymbolToken(symbol_token) == FALSE) {
+    print(expr)
+    print(tokens)
+    stop("Trying to get variable for $ operator but this is not a column access")
+  }
+  
+  return(symbol_token$text)
+}
