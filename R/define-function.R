@@ -4,8 +4,6 @@ define_function.get_pmml_string <- function(tokens, functionName) {
     stop('Too many function tokens found within function definition')
   }
   
-  inner_func_names <- c()
-  
   functionTokenParentExprId <- functionTokens[1, ]$parent
   
   functionExprToken <- getTokenWithId(functionTokenParentExprId, tokens)
@@ -49,7 +47,6 @@ define_function.get_pmml_string <- function(tokens, functionName) {
     if(i != nrow(topLevelFunctionBodyExprTokens)) {
       inner_func_expr <- topLevelFunctionBodyExprTokens[i, ]
       inner_func_name <- define_function.get_inner_func_name(inner_func_expr, tokens, functionName)
-      inner_func_names <- c(inner_func_names, inner_func_name)
       pmmlFunctionString <- paste(pmmlFunctionString, getPmmlStringForExprTokenWithinFunction(inner_func_name, topLevelFunctionBodyExprTokens[i, ], non_row_function_arg_tokens, functionName, defaultedArgs, tokens), sep='')
     }
     #It's the last expression so it has to be a function return call
