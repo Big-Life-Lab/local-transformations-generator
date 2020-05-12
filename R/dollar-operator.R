@@ -27,3 +27,10 @@ dollar_op.get_var <- function(expr, tokens) {
   
   return(symbol_token$text)
 }
+
+dollar_op.is_get_col_from_row_expr <- function(expr, tokens) {
+  child_expr_tokens <- getExprTokens(getChildTokensForParent(expr, tokens))
+  possible_row_var_symbol <- getChildTokensForParent(child_expr_tokens[1, ], tokens)[1, ]
+  
+  return(dollar_op.is_expr(expr, tokens) & isSymbolToken(possible_row_var_symbol))
+} 

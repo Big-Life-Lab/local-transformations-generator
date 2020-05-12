@@ -84,6 +84,12 @@ getPmmlStringForExpr <- function(expr, tokens) {
       stop(glue::glue('Unhandled special symbol {childSpecialTokensForCurrentExpr[1, "text"]}'))
     }
   }
+  # If this is an expression to access the column from a row and store it in a variable for eg. var1 <- row$col1
+  else if(dollar_op.is_get_col_from_row_expr(expr, tokens)) {
+    row_var_name <- dollar_op.get_var(expr, tokens)
+    
+    return(dollar_op.get_pmml_node(expr, tokens, globals.get_pmml_str_for_row_var_name(row_var_name)))
+  }
   else if(dollar_op.is_expr(expr, tokens)) {
     if(data_frame.is_expr(tokensWhoseParentIsTheCurrentExpr[1, ], tokens)) {
       return(dollar_op.get_pmml_node(
@@ -470,13 +476,7 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE, mutatedVariables = d
                 pmml = c(data_frame.get_pmml_node(assign_expr_token, tokensForCurrentParentIndex))
             ))
           } 
-          # If this is an expression to access the column from a row and store it in a variable for eg. var1 <- row$col1
-          else if(dollar_op.is_expr(assign_expr_token, tokensForCurrentParentIndex) & isSymbolToken(possible_row_var)) {
-            row_var_name <- possible_row_var$text
-            derived_field_pmml_str <- glue::glue(
-              '<DerivedField name="{mutatedVariableName}" optype="continuous">{dollar_op.get_pmml_node(assign_expr_token, tokensForCurrentParentIndex, row_vars[row_vars$row_name == row_var_name, "pmml"])}</DerivedField>')
-            localTransformationString <- paste(localTransformationString, derived_field_pmml_str, sep = '')
-          } else if(function_call.is_row_function_call_expr(assign_expr_token, tokensForCurrentParentIndex)) {
+          else if(function_call.is_row_function_call_expr(assign_expr_token, tokensForCurrentParentIndex)) {
             gl_row_function <- globals.get_row_function(function_call.get_function_name_token(assign_expr_token, tokens)$text)
             func_arg_expr_tokens <- function_call.get_function_arg_expr_tokens(assign_expr_token, tokens)
             non_row_func_arg_expr_tokens <- func_arg_expr_tokens
