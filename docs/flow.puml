@@ -1,0 +1,41 @@
+@startuml
+
+start
+note right: Start parsing an R file
+
+while (Get tokens for next line of code) is (there are tokens) 
+    :Read tokens for next line of code;
+    
+    if (Code is for a source function call) then (yes)
+        :Make PMML for sourced R file;
+    elseif (Code is for an if statement) then (yes)
+        :Make PMML for if statement;
+    else
+        :Get the variable name being assigned;
+
+        :Go through mutation logic for this variable name;
+
+        :Evaluate this line of code;
+
+        if (Evaluated value is a string) then (yes)
+            :Make a DerivedField PMML string;
+        elseif (Evaluated value is a data frame) then (yes)
+            :Make Taxonomy PMML string;
+        elseif (Code is a function definition) then (yes)
+            :Make a DefineFunction PMML string;
+        elseif(Code is for a row access) then (yes)
+            :Go through row access logic;
+            note right: eg., table[col1 == 'val' & col2 == 'val2', ]
+        elseif(Code is for a function call that uses a row as an argument) then (yes)
+            :Make DerivedField PMML string and "unrolled" DefineFunction PMML strings;
+        else 
+            :Make DerivedField PMML string;
+        endif
+    endif
+
+    :Append PMML to PMML for file;
+endwhile (no more tokens)
+
+stop
+
+@enduml
