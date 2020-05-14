@@ -102,7 +102,7 @@ getPmmlStringForFunctionArgTokens <- function(functionArgTokens) {
   for(i in 1:nrow(functionArgTokens)) {
     currentArgName <- functionArgTokens[i ,'text']
     parameterPmmlStringForCurrentArgToken <- glue::glue('<ParameterField name="{currentArgName}" dataType="double"/>')
-    parametersPmmlStringForFunction <- paste(parametersPmmlStringForFunction, parameterPmmlStringForCurrentArgToken)
+    parametersPmmlStringForFunction <- paste(parametersPmmlStringForFunction, parameterPmmlStringForCurrentArgToken, sep="")
   }
 
   return(parametersPmmlStringForFunction)
