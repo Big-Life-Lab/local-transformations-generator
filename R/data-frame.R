@@ -47,8 +47,8 @@ data_frame.get_pmml_node <- function(expr, tokens) {
     outputColumnName <- formatSymbolName(getChildTokensForParent(child_tokens[5, ], tokens)[1, ])
     indexColumnValue <- formatSymbolName(getChildTokensForParent(child_tokens[3, ], tokens)[1, ])
     tableName <- formatSymbolName(getChildTokensForParent(child_tokens[1, ], tokens)[1, ])
-    
     fieldColumnPairString <- glue::glue('<FieldColumnPair column="index" constant="{indexColumnValue}"/>')
+    
     return(glue::glue('<MapValues outputColumn="{outputColumnName}">{fieldColumnPairString}<TableLocator location="taxonomy" name="{tableName}"/></MapValues>'))
   } else {
     # The first token in the above child tokens is an expressions which has the name of the table we want to search
@@ -79,7 +79,7 @@ data_frame.get_pmml_node <- function(expr, tokens) {
         # Make the field or constant pmml string
         fieldOrConstantString <- ifelse(isSymbolToken(fieldOrConstant), glue::glue('field="{fieldOrConstant$text}"'), glue::glue('constant="{formatConstantTokenText(fieldOrConstant)}"'))
         # Make the FieldColumnPair string and append it to the master list
-        fieldColumnPairs <- paste(fieldColumnPairs, glue::glue('<FieldColumnPair {columnString} {fieldOrConstantString}/>'))
+        fieldColumnPairs <- paste(fieldColumnPairs, glue::glue('<FieldColumnPair {columnString} {fieldOrConstantString}/>'), sep = "")
       }
     }
     
