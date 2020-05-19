@@ -1,3 +1,5 @@
+source("R/strings.R")
+
 define_function.get_pmml_string <- function(tokens, functionName) {
   functionTokens <- getFunctionTokens(tokens)
   if(nrow(functionTokens) > 1) {
@@ -31,19 +33,23 @@ define_function.get_pmml_string <- function(tokens, functionName) {
   pmmlFunctionString <- ''
   
   defaultedArgs <- data.frame()
-  for(i in 1:nrow(function_param_name_tokens)) {
-    defaultFunctionPmmlStringForCurrentArg <- getDefineFunctionForDefaultArgExpr(function_param_name_tokens[i, ], function_param_name_tokens, tokens)
-    
-    if(defaultFunctionPmmlStringForCurrentArg != '') {
-      if(function_param_name_tokens[i, "text"] %in% row_args) {
-        stop("Argument which is used as a row has a default value")
+  if(nrow(function_param_name_tokens) != 0) {
+    for(i in 1:nrow(function_param_name_tokens)) {
+      defaultFunctionPmmlStringForCurrentArg <- getDefineFunctionForDefaultArgExpr(function_param_name_tokens[i, ], function_param_name_tokens, tokens)
+      
+      if(defaultFunctionPmmlStringForCurrentArg != '') {
+        if(function_param_name_tokens[i, "text"] %in% row_args) {
+          stop("Argument which is used as a row has a default value")
+        }
+        defaultedArgs <- rbind(defaultedArgs, function_param_name_tokens[i, ])
+        pmmlFunctionString <- glue::glue(pmmlFunctionString, defaultFunctionPmmlStringForCurrentArg)
       }
-      defaultedArgs <- rbind(defaultedArgs, function_param_name_tokens[i, ])
-      pmmlFunctionString <- glue::glue(pmmlFunctionString, defaultFunctionPmmlStringForCurrentArg)
     }
   }
   
   for(i in 1:nrow(topLevelFunctionBodyExprTokens)) {
+    test_unsupported_exprs(topLevelFunctionBodyExprTokens[i, ], tokens)
+    
     if(i != nrow(topLevelFunctionBodyExprTokens)) {
       inner_func_expr <- topLevelFunctionBodyExprTokens[i, ]
       inner_func_name <- define_function.get_inner_func_name(inner_func_expr, tokens, functionName)
@@ -128,14 +134,26 @@ define_function.get_pmml_string <- function(tokens, functionName) {
   }
 }
 
+# Currently unsupported expressions within functions
+# 1. Accessing column values from data frame 
+test_unsupported_exprs <- function(top_level_expr, tokens) {
+  assign_expr_token <- getTokenWithAssignmentCode(getDescendantsOfToken(top_level_expr, tokens))
+  
+  if(is.na(assign_expr_token) == FALSE) {
+    if(data_frame.is_col_access(assign_expr_token, tokens) | data_frame.is_expr(assign_expr_token, tokens)) {
+      stop(strings.unsupported_df_col_access_expr_error)  
+    }
+  }
+}
+
 define_function.get_pmml_str_for_expr <- function(expr, tokens) {
-  if(data_frame.is_row_access(expr, tokens)) {
+  get_pmml_str_for_row_access <- function(expr, tokens) {
     row_var_name <- dollar_op.get_var(expr, tokens)
     inner_text <- paste("{", row_var_name, "}", sep = "")
     return(dollar_op.get_pmml_node(expr, tokens, inner_text))
-  } else {
-    return(getPmmlStringForExpr(expr, tokens))
   }
+  
+  return(getPmmlStringForExpr(expr, tokens, get_pmml_str_for_row_access))
 }
 
 getPmmlStringForExprTokenWithinFunction <- function(inner_func_name, innerFunctionExprToken, originalFunctionArgTokens, originalFunctionName, defaultedArgTokens, tokens) {
@@ -190,7 +208,7 @@ getFunctionNameForInnerFunctionExprToken <- function(originalFunctionName, varia
 }
 
 define_function.get_inner_func_name <- function(inner_func_expr, tokens, orig_func_name) {
-  var_name <- getDerivedFieldNameOrFunctionNameForTokens(getDescendantsOfToken(inner_func_expr, tokens))
+  var_name <- util.get_derived_field_names(getDescendantsOfToken(inner_func_expr, tokens))[1]
   
   return(getFunctionNameForInnerFunctionExprToken(orig_func_name, var_name))
 } 
@@ -208,10 +226,23 @@ define_function.get_row_args <- function(func_body_exprs, function_args, tokens)
       )
     }
     
-    if(data_frame.is_row_access(token_with_assignment_code, tokens)) {
-      row_var_name <- dollar_op.get_var(token_with_assignment_code, tokens)
-      if(row_var_name %in% function_args) {
-        row_args <- c(row_args, row_var_name)
+    # For this expression
+    # 1. Get all the symbol tokens which are descendants of this expr and is
+    # a function parameter
+    # 2. Check whether this function parameter is used as a row from a # dataframe. If it is then add it to the list row_args
+    # Step 1
+    descendant_symbol_tokens <- getSymbolsInTokens(getDescendantsOfToken(token_with_assignment_code, tokens))
+    descendant_arg_symbol_tokens <- descendant_symbol_tokens[descendant_symbol_tokens$text %in% function_args, ]
+    # Step 2
+    if(nrow(descendant_arg_symbol_tokens) > 0) {
+      for(j in 1:nrow(descendant_arg_symbol_tokens)) {
+        parent_token_to_check_for_row_access <- getParentToken(getParentToken(descendant_arg_symbol_tokens[j, ], tokens), tokens)
+        if(data_frame.is_row_access(parent_token_to_check_for_row_access, tokens)) {
+          row_var_name <- dollar_op.get_var(parent_token_to_check_for_row_access, tokens)
+          if(row_var_name %in% function_args & row_var_name %in% row_args == FALSE) {
+            row_args <- c(row_args, row_var_name)
+          }
+        }
       }
     }
   }
@@ -225,4 +256,8 @@ define_function.is_return_expr <- function(expr, tokens) {
 
 define_function.get_return_arg_expr <- function(return_expr, tokens) {
   return(getExprTokens(getChildTokensForParent(return_expr, tokens))[2, ])
+}
+
+define_function.is <- function(expr, tokens) {
+  return(getChildTokensForParent(expr, tokens)[1, "token"] == FUNCTION_TOKEN)
 }
