@@ -1,79 +1,57 @@
 source('R/token_to_pmml.R')
 source(file.path(getwd(), 'R/pmml-custom-func.R'))
 
-getDerivedFieldNameOrFunctionNameForTokens <- function(tokens) {
-  leftAssignToken <- tokens[which(tokens$token == LEFT_ASSIGN_TOKEN), ]
-  if(nrow(leftAssignToken) > 1) {
-    leftAssignToken <- leftAssignToken[1, ]
+util.get_var_and_func_names <- function(tokens) {
+  leftAssignTokens <- tokens[which(tokens$token == LEFT_ASSIGN_TOKEN), ]
+  
+  if(nrow(leftAssignTokens) == 0) {
+    return(leftAssignTokens)
   }
   
-  firstSymbol <- getFirstSymbolInExpr(getTokensWithParent(leftAssignToken$parent, tokens)[1, ], tokens)
-  
-  if(nrow(firstSymbol) == 0) {
-    stop('derivedFieldName or functionName is unkown')
-  } else {
-    return(firstSymbol$text)
-  }
-}
-
-getDerivedFieldPmmlStringForTokens <- function(tokens, derivedFieldName, comment_tokens, evaluatedVariables, addDerivedField=TRUE) {
-  leftAssignToken <- tokens[which(tokens$token == LEFT_ASSIGN_TOKEN), ][1, ]
-  
-  tokenWithAssignmentCode <- getTokenWithAssignmentCode(tokens)
-  
-  transformationsPmmlString <- ''
-  
-  # If there's a custom pmml function comment for this expression set it to this variable
-  custom_pmml_func_comment_token <- NA
-  if(nrow(comment_tokens) != 0) {
-    custom_pmml_func_comment_token <- get_custom_pmml_func_comment_token(comment_tokens)
-  }
-  # If this line needs to be converted to a custom pmml expression
-  if(!is.na(custom_pmml_func_comment_token)) {
-    transformationsPmmlString <- get_pmml_node_for_pmml_func_comment_token(
-      custom_pmml_func_comment_token,
-      evaluatedVariables
-    )
-  }
-  else if(tokenWithAssignmentCode$token == EXPR_TOKEN) {
-    if(function_call.is_row_function_call_expr(tokenWithAssignmentCode, tokens)) {
-      gl_row_function <- globals.get_row_function(function_call.get_function_name_token(tokenWithAssignmentCode, tokens)$text)
-      func_arg_expr_tokens <- function_call.get_function_arg_expr_tokens(tokenWithAssignmentCode, tokens)
-      non_row_func_arg_expr_tokens <- func_arg_expr_tokens
-      for(i in 1:nrow(func_arg_expr_tokens)) {
-        if(gl_row_function$args[i] %in% gl_row_function$row_args) {
-          non_row_func_arg_expr_tokens <- non_row_func_arg_expr_tokens[non_row_func_arg_expr_tokens$id != func_arg_expr_tokens[i, ]$id, ]
-        }
-      }
-      
-      func_args_pmml_str <- function_call.get_pmml_str_for_arg_exprs(non_row_func_arg_expr_tokens, tokens)
-      
-      function_call_symbol_token <- function_call.get_function_name_token(tokenWithAssignmentCode, tokens)
-      
-      transformationsPmmlString <- getPmmlStringForSymbolFunctionCall(
-        function_call_symbol_token,
-        func_args_pmml_str
-      )
-    } else {
-      transformationsPmmlString <- getPmmlStringForExpr(getTokenAfterTokenWithId(tokens, leftAssignToken$id), tokens)   
+  var_and_func_names <- c()
+  func_expr_tokens <- tokens.create_empty_tokens_df()
+  for(i in 1:nrow(leftAssignTokens)) {
+    leftAssignToken <- leftAssignTokens[i, ]
+    
+    is_within_function <- FALSE
+    if(nrow(func_expr_tokens) != 0) {
+      for(j in 1:nrow(func_expr_tokens)) {
+        if(isDescendantOfTokenWithId(
+          func_expr_tokens[j, "id"], leftAssignToken, tokens)) {
+          is_within_function <- TRUE
+          break;
+        } 
+      }  
     }
-  } else if(tokenWithAssignmentCode$token == NUM_CONST_TOKEN | tokenWithAssignmentCode$token == STR_CONST_TOKEN | tokenWithAssignmentCode$token == NULL_CONST_TOKEN) {
-    transformationsPmmlString <- getPmmlStringForConstant(tokenWithAssignmentCode)
-  } else if(tokenWithAssignmentCode$token == SYMBOL_TOKEN) {
-    transformationsPmmlString <- getPmmlStringForSymbol(tokenWithAssignmentCode)
-  } else {
-    stop(glue::glue('Unhandled token type {tokenWithAssignmentCode$token} for field {derivedFieldName}'))
+    
+    if(is_within_function == FALSE) {
+      parent_token <- getParentToken(leftAssignToken, tokens)
+      child_tokens <- getChildTokensForParent(parent_token, tokens)
+      var_or_func_name_expr_token <- child_tokens[1, ]
+      var_or_func_name_symbol_token <- getChildTokensForParent(
+        var_or_func_name_expr_token,
+        tokens
+      )[1, ]
+      var_and_func_names <- c(
+        var_and_func_names,
+        var_or_func_name_symbol_token$text
+      )
+      
+      if(define_function.is(child_tokens[3, ], tokens)) {
+        func_expr_tokens <- rbind(func_expr_tokens, child_tokens[3, ])
+      }
+    }
   }
   
-  if(addDerivedField) {
-    return(glue::glue('<DerivedField name="{derivedFieldName}" optype="continuous">{transformationsPmmlString}</DerivedField>'))
-  } else {
-    return(transformationsPmmlString)
-  }
+  return(var_and_func_names)
 }
 
 getTokenWithAssignmentCode <- function(tokens) {
   leftAssignToken <- tokens[which(tokens$token == LEFT_ASSIGN_TOKEN), ][1, ]
+  
+  if(is.na(leftAssignToken$id)) {
+    return(NA)
+  }
   
   return(getTokenAfterTokenWithId(tokens, leftAssignToken$id))
 }
