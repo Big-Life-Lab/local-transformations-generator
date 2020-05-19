@@ -208,7 +208,7 @@ getFunctionNameForInnerFunctionExprToken <- function(originalFunctionName, varia
 }
 
 define_function.get_inner_func_name <- function(inner_func_expr, tokens, orig_func_name) {
-  var_name <- util.get_derived_field_names(getDescendantsOfToken(inner_func_expr, tokens))[1]
+  var_name <- util.get_var_and_func_names(getDescendantsOfToken(inner_func_expr, tokens))[1]
   
   return(getFunctionNameForInnerFunctionExprToken(orig_func_name, var_name))
 } 

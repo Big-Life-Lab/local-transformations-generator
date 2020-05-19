@@ -25,8 +25,7 @@ util.get_var_and_func_names <- function(tokens) {
     }
     
     if(is_within_function == FALSE) {
-      parent_token <- getParentToken(leftAssignToken, tokens)
-      child_tokens <- getChildTokensForParent(parent_token, tokens)
+      child_tokens <- tokens.get_child_tokens_for_parent_id(leftAssignToken$parent, tokens)
       var_or_func_name_expr_token <- child_tokens[1, ]
       var_or_func_name_symbol_token <- getChildTokensForParent(
         var_or_func_name_expr_token,
