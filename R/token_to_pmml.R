@@ -11,7 +11,7 @@ getPmmlStringForSymbol <- function(symbol) {
 }
 
 formatSymbolName <- function(symbol) {
-  return(gsub("'", "", symbol$text))
+  return(gsub("'|\"", "", symbol$text))
 }
 
 formatConstantTokenText <- function(constant) {
