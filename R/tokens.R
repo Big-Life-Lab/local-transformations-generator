@@ -110,9 +110,11 @@ getDescendantsOfToken <- function(node, nodes) {
   descendantIds <- c()
 
   #Go thorugh all the nodes and each one which is a descendant add it's id to the descendantIds vector
-  for(i in 1:nrow(nodes)) {
-    if(isDescendantOfTokenWithId(node$id, nodes[i, ], nodes)) {
-      descendantIds <- c(descendantIds, nodes[i, 'id'])
+  if(nrow(nodes) > 0) {
+    for(i in 1:nrow(nodes)) {
+      if(isDescendantOfTokenWithId(node$id, nodes[i, ], nodes)) {
+        descendantIds <- c(descendantIds, nodes[i, 'id'])
+      }
     }
   }
 
@@ -212,4 +214,11 @@ getTokenAfterTokenWithId <- function(tokens, id) {
   } else {
     return(tokens[i+1, ])
   }
+}
+
+tokens.create_empty_tokens_df <- function() {
+  df <- data.frame(matrix(ncol = 9, nrow = 0))
+  colnames(df) <- c("line1", "col1", "line2", "col2", "id", "parent", "token", "terminal", "text")
+  
+  return(df)
 }
