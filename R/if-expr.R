@@ -1,11 +1,13 @@
 source('R/tokens.R')
 source('R/util.R')
 
-isIfExpr <- function(tokens) {
-  return(tokens[2, 'token'] == 'IF')
+if_expr.is <- function(expr, tokens) {
+  child_tokens <- getChildTokensForParent(expr, tokens)
+  
+  return(child_tokens[1, "token"] == IF_TOKEN)
 }
 
-getPmmlStringForIfExpr <- function(expr, tokens, comment_tokens, evaluated_variables, returnFinalPmmlString=TRUE) {
+getPmmlStringForIfExpr <- function(expr, tokens, comment_tokens, evaluated_variables) {
   derivedFieldsSet <- data.frame();
   # The index of the dataframe is the derived field name
   # conditionExprIds: String which has the ids of the expr that holds the condition code which when true the corresponsing true code sets this derived field. Each expr id is seperated by a comma
@@ -47,8 +49,10 @@ getPmmlStringForIfExpr <- function(expr, tokens, comment_tokens, evaluated_varia
     )
   }
   
-  derivedFieldNameWithPmmlString <- data.frame()
+  derivedFieldNameWithPmmlString <- list()
   for(derivedFieldName in row.names(derivedFieldsSet)) {
+    pmml_str <- ''
+    
     conditionPmmlString <- getPmmlStringForExpr(getExprWithIdInTokens(derivedFieldsSet[derivedFieldName, 'conditionExprId'], tokens), tokens)
     whenTruePmmlString <- getDerivedFieldPmmlStringForTokens(
       getDescendantsOfToken(getExprWithIdInTokens(derivedFieldsSet[derivedFieldName, 'exprBlockId'], tokens), tokens), 
@@ -63,30 +67,82 @@ getPmmlStringForIfExpr <- function(expr, tokens, comment_tokens, evaluated_varia
     }
     
     if(conditionPmmlString != '') {
-      derivedFieldNameWithPmmlString[derivedFieldName, 'pmmlString'] <- glue::glue('<Apply function="if">{conditionPmmlString}{whenTruePmmlString}{whenFalsePmmlString}</Apply>')
+      pmml_str <- glue::glue('<Apply function="if">{conditionPmmlString}{whenTruePmmlString}{whenFalsePmmlString}</Apply>')
     } else {
-      derivedFieldNameWithPmmlString[derivedFieldName, 'pmmlString'] <- whenTruePmmlString
+      pmml_str <- whenTruePmmlString
     }
+    
+    derivedFieldNameWithPmmlString[[length(derivedFieldNameWithPmmlString) + 1]] <- list(
+      derived_field_name = derived_field_name,
+      pmml_str = pmml_str
+    )
   }
   
+  # This if loop will add the derived fields which have been initialised in the
+  # else part of the if loop to the master list if they have not been put in there
+  # already
   if(!is.na(elsePmmlStrings)) {
     for(derivedFieldName in row.names(elsePmmlStrings)) {
-      if(!derivedFieldName %in% row.names(derivedFieldNameWithPmmlString)) {
-        derivedFieldNameWithPmmlString[derivedFieldName, 'pmmlString'] <- elsePmmlStrings[derivedFieldName, 'pmmlString']
+      not_in_derived_fields_list <- FALSE
+      if(length(derivedFieldNameWithPmmlString) != 0) {
+        for(i in 1:length(derivedFieldNameWithPmmlString)) {
+          if(derivedFieldName != derivedFieldNameWithPmmlString[[i]]$derived_field_name) {
+            not_in_derived_fields_list <- TRUE
+          }
+        }
+      } else {
+        not_in_derived_fields_list <- TRUE
+      }
+      
+      if(not_in_derived_fields_list) {
+        derivedFieldNameWithPmmlString[[length(derivedFieldNameWithPmmlString) + 1]] <- list(
+          derived_field_name = derivedFieldName,
+          pmml_str = elsePmmlStrings[derivedFieldName, 'pmmlString']
+        )
       }
     }
   }
 
+  return(derivedFieldNameWithPmmlString)
+}
+
+if_expr.get_cond_expr_to_block_exprs_map <- function(
+  expr,
+  tokens,
+  cond_expr_to_block_exprs_mappings = list()
+) {
+  child_tokens <- getChildTokensForParent(expr, tokens)
+  child_expr_tokens <- getExprTokens(child_tokens)
   
-  if(!returnFinalPmmlString) {
-    return(derivedFieldNameWithPmmlString)
-  } else {
-    pmmlString <- ''
+  found_if_token <- FALSE
+  for(i in 1:nrow(child_tokens)) {
+    cur_child_token <- child_tokens[i, ]
     
-    for(derivedFieldName in row.names(derivedFieldNameWithPmmlString)) {
-      pmmlString <- glue::glue('{pmmlString}<DerivedField name="{derivedFieldName}">{derivedFieldNameWithPmmlString[derivedFieldName, "pmmlString"]}</DerivedField>')
+    if(cur_child_token$token == IF_TOKEN) {
+      found_if_token <- TRUE
+      
+      cond_expr_id <- child_expr_tokens[1, "id"]
+      block_expr_ids <- getExprTokens(
+        getChildTokensForParent(child_expr_tokens[2, ], tokens))$id
+      cond_expr_to_block_exprs_mappings[[length(cond_expr_to_block_exprs_mappings) + 1]] <- list(
+        cond_expr_id = cond_expr_id,
+        block_expr_ids = block_expr_ids
+      )
     }
     
-    return(pmmlString)
+    if(cur_child_token$token == ELSE_TOKEN) {
+      cond_expr_to_block_exprs_mappings <- if_expr.get_cond_expr_to_block_exprs_map(
+        child_tokens[i + 1, ], tokens, cond_expr_to_block_exprs_mappings
+      ) 
+    }
   }
+  
+  if(found_if_token == FALSE) {
+    cond_expr_to_block_exprs_mappings[[length(cond_expr_to_block_exprs_mappings) + 1]] <- list(
+      cond_expr_id = NA,
+      block_expr_ids = child_expr_tokens$id
+    )
+  }
+  
+  return(cond_expr_to_block_exprs_mappings)
 }

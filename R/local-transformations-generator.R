@@ -10,6 +10,7 @@ source('R/function-call.R')
 source('R/globals/gl-row-functions.R')
 source('R/globals/gl-row-vars.R')
 source('R/expr.R')
+source('R/derived-field.R')
 
 isDataFrameShortAccessExpr <- function(exprToCheck, tokens) {
   childTokens <- getChildTokensForParent(exprToCheck, tokens)
@@ -65,111 +66,6 @@ isSymbolFunctionCallExpr <- function(exprToken, tokens) {
   }
 
   return(FALSE);
-}
-
-getPmmlStringForExpr <- function(expr, tokens, 
-                                 get_pmml_str_for_row_access = function(expr, tokens) {return("")},
-                                 get_pmml_str_for_func_call_row_access = function(expr, tokens) {return("")}) {
-  tokensWhoseParentIsTheCurrentExpr = getTokensWithParent(expr$id, tokens)
-  tokensWhoseParentIsTheCurrentExprHasOneRow <- (nrow(tokensWhoseParentIsTheCurrentExpr) != 0)
-
-  childSpecialTokensForCurrentExpr <- getSpecialTokens(getChildTokensForParent(expr, tokens))
-  
-  if(nrow(childSpecialTokensForCurrentExpr) != 0) {
-    if(childSpecialTokensForCurrentExpr[1, 'text'] == '%in%') {
-      childExprTokens <- getExprTokens(getChildTokensForParent(expr, tokens))
-      leftExprTokenPmmlString <- getPmmlStringForExpr(childExprTokens[1, ], tokens, get_pmml_str_for_row_access, get_pmml_str_for_func_call_row_access)
-      rightExprTokenPmmlString <- getPmmlStringForExpr(childExprTokens[2, ], tokens, get_pmml_str_for_row_access, get_pmml_str_for_func_call_row_access)
-
-      return(glue::glue('<Apply function="isIn">{leftExprTokenPmmlString}{rightExprTokenPmmlString}</Apply>'))
-    }
-    else {
-      stop(glue::glue('Unhandled special symbol {childSpecialTokensForCurrentExpr[1, "text"]}'))
-    }
-  }
-  else if(data_frame.is_row_access(expr, tokens)) {
-    return(get_pmml_str_for_row_access(expr, tokens))
-  }
-  # If this is an expression to access the column from a row and store it in a variable for eg. var1 <- row$col1
-  else if(dollar_op.is_get_col_from_row_expr(expr, tokens)) {
-    row_var_name <- dollar_op.get_var(expr, tokens)
-    
-    return(dollar_op.get_pmml_node(expr, tokens, globals.get_pmml_str_for_row_var_name(row_var_name)))
-  }
-  else if(dollar_op.is_expr(expr, tokens)) {
-    if(data_frame.is_expr(tokensWhoseParentIsTheCurrentExpr[1, ], tokens)) {
-      return(dollar_op.get_pmml_node(
-        expr, tokens, data_frame.get_pmml_node(tokensWhoseParentIsTheCurrentExpr[1, ], tokens)))
-    }
-  } else if(data_frame.is_expr(expr, tokens)) {
-    return(data_frame.get_pmml_node(expr, tokens))
-  }
-  else if(tokensWhoseParentIsTheCurrentExprHasOneRow & tokensWhoseParentIsTheCurrentExpr[1, ]$token == IF_TOKEN) {
-    conditionExpr <- tokensWhoseParentIsTheCurrentExpr[3, ]
-    trueResultExpr <- tokensWhoseParentIsTheCurrentExpr[5, ]
-    falseResultExpr <- tokensWhoseParentIsTheCurrentExpr[7, ]
-
-    return(getPmmlStringForIfToken(conditionExpr, trueResultExpr, falseResultExpr, tokens))
-  } else {
-    exprTokensWhoseParentIsTheCurrentExpr = getExprTokens(tokensWhoseParentIsTheCurrentExpr)
-    nonExprTokensWhoseParentIsTheCurrentExpr = filterOutExprTokens(tokensWhoseParentIsTheCurrentExpr)
-    pmmlStringForExprTokens <- ''
-
-    if(nrow(exprTokensWhoseParentIsTheCurrentExpr) != 0) {
-      # If this expression has a function call in it
-      if(isSymbolFunctionCallExpr(expr, tokens)) {
-        if(function_call.is_row_function_call_expr(expr, tokens)) {
-          return(get_pmml_str_for_func_call_row_access(expr, tokens))
-        }
-        
-        functionSymbolToken <- getTokensWithParent(exprTokensWhoseParentIsTheCurrentExpr[1, 'id'], tokens)[1, ]
-
-        # Handle c functions by taking the arguments to the functions and concating the pmml string for each argument
-        if(functionSymbolToken$text == 'c') {
-          return(function_call.get_pmml_str_for_args(expr, tokens))
-        } else if(functionSymbolToken$text == 'exists') {
-          function_arg_expr_tokens <- function_call.get_function_arg_expr_tokens(expr, tokens)
-          exitsArg <- formatConstantTokenText(getTokensWithParent(function_arg_expr_tokens[1, 'id'], tokens)[1, ])
-          return(getPmmlStringForSymbolFunctionCall(functionSymbolToken, glue::glue('<FieldRef field="{exitsArg}"/>')))
-        }# If read.csv function call. Do nothing since we handle converting csv files to PMML tables at the beginning
-        else if(functionSymbolToken$text == 'read.csv') {} 
-        else {
-            return(getPmmlStringForSymbolFunctionCall(functionSymbolToken, 
-                                                      function_call.get_pmml_str_for_args(expr, tokens)))
-        }
-      } else {
-        for(i in 1:nrow(exprTokensWhoseParentIsTheCurrentExpr)) {
-          pmmlStringForExprTokens <- paste(
-            pmmlStringForExprTokens,
-            getPmmlStringForExpr(exprTokensWhoseParentIsTheCurrentExpr[i, ], tokens, get_pmml_str_for_row_access, get_pmml_str_for_func_call_row_access),
-            sep=''
-          )
-        }
-      }
-    }
-
-    if(nrow(nonExprTokensWhoseParentIsTheCurrentExpr) == 0) {
-      return(pmmlStringForExprTokens)
-    }
-
-    nonExprToken = nonExprTokensWhoseParentIsTheCurrentExpr[1, ]
-    nonExprTokenToken = nonExprToken$token
-
-    if(nonExprTokenToken == SYMBOL_TOKEN) {
-      return(getPmmlStringForSymbol(nonExprToken))
-    } else if(nonExprTokenToken == NUM_CONST_TOKEN | nonExprTokenToken == STR_CONST_TOKEN | nonExprTokenToken == NULL_CONST_TOKEN) {
-      return(getPmmlStringForConstant(nonExprToken))
-    } else if(nonExprTokenToken %in% MATH_TOKENS) {
-      return(getPmmlStringForMathToken(nonExprToken, pmmlStringForExprTokens))
-    } else if(nonExprTokenToken %in% LOGICAL_TOKENS) {
-      return(getPmmlStringForLogicalOperator(nonExprToken, pmmlStringForExprTokens))
-    } else if(nonExprToken$token == "':'") {
-      return(getPmmlStringForColonToken(pmmlStringForExprTokens))
-    } 
-    else {
-      return(pmmlStringForExprTokens)
-    }
-  }
 }
 
 getRArgumentsIntoFunctionString <- function(originalFunctionArgTokens) {
@@ -409,7 +305,7 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE, mutatedVariables = d
       localTransformationString <- paste(localTransformationString, sourceReturnValues$localTransformationString, sep='')
       mutatedVariables <- sourceReturnValues$mutatedVariables
     } else {
-      derived_field_names <- util.get_var_and_func_names(tokensForCurrentParentIndex)
+      derived_field_names <- unique(util.get_var_and_func_names(tokensForCurrentParentIndex))
       
       for(i in 1:length(derived_field_names)) {
         mutateRelevantVariablesResult <- mutateRelevantVariables(derived_field_names[i], tokensForCurrentParentIndex, mutatedVariables)
@@ -470,7 +366,7 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE, mutatedVariables = d
                                ))
           } 
           else {
-            pmml_str_for_var <- expr.get_pmml_for_var(
+            pmml_str_for_var <- derived_field.get_pmml_str_for_var(
               mutatedVariableName, tokensForCurrentParentIndex[1, ], tokensForCurrentParentIndex, comments_for_current_expr, evaluated_variables)
             localTransformationString <- paste(localTransformationString, pmml_str_for_var, sep='')
           }

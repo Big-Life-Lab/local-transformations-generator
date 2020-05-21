@@ -51,6 +51,6 @@ getTokenWithAssignmentCode <- function(tokens) {
   if(is.na(leftAssignToken$id)) {
     return(NA)
   }
-  
+
   return(getTokenAfterTokenWithId(tokens, leftAssignToken$id))
 }

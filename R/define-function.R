@@ -93,7 +93,7 @@ define_function.get_pmml_string <- function(tokens, functionName) {
           rFunctionArgs <- getRArgumentsIntoFunctionString(non_row_function_arg_tokens)
           rCode <- glue::glue('{rFunctionNameForCurrentSymbol}({rFunctionArgs})')
           tokensForRCode <- getParseData(parse(text = rCode))
-          pmmlStringForRCode <- getPmmlStringForExpr(tokensForRCode[1, ], tokensForRCode)
+          pmmlStringForRCode <- define_function.get_pmml_str_for_expr(tokensForRCode[1, ], tokensForRCode, functionName)
           pmmlStringForRCode <- gsub(
             rFunctionNameForCurrentSymbol,
             getFunctionNameForInnerFunctionExprToken(functionName, symbolsWithinReturnArgExprWhichAreNotFunctionArguments[j, 'text']),
@@ -146,26 +146,118 @@ test_unsupported_exprs <- function(top_level_expr, tokens) {
   }
 }
 
-define_function.get_pmml_str_for_expr <- function(expr, tokens) {
-  get_pmml_str_for_row_access <- function(expr, tokens) {
-    row_var_name <- dollar_op.get_var(expr, tokens)
-    inner_text <- paste("{", row_var_name, "}", sep = "")
-    return(dollar_op.get_pmml_node(expr, tokens, inner_text))
+get_pmml_str_for_row_access <- function(expr, tokens) {
+  row_var_name <- dollar_op.get_var(expr, tokens)
+  inner_text <- paste("{", row_var_name, "}", sep = "")
+  return(dollar_op.get_pmml_node(expr, tokens, inner_text))
+}
+
+
+get_pmml_str_for_if_expr <- function(cond_expr_to_block_exprs_mappings, tokens, orig_func_name, orig_func_param_tokens) {
+  var_name_to_if_expr_mappings <- list()
+  for(i in 1:length(cond_expr_to_block_exprs_mappings)) {
+    current_map <- cond_expr_to_block_exprs_mappings[[i]]
+    
+    for(j in 1:length(current_map$block_expr_ids)) {
+      current_block_expr_id <- current_map$block_expr_ids[[j]]
+      
+      var_name <- util.get_var_and_func_names(
+        getDescendantsOfToken(getTokenWithId(current_block_expr_id, tokens), tokens)
+      )[[1]]
+      new_var_name_to_if_expr_map <- list(
+        cond_expr_id = current_map$cond_expr_id,
+        expr_id = current_block_expr_id
+      )
+      
+      current_var_name_mapping <- var_name_to_if_expr_mappings[[var_name]]
+      if(is.null(current_var_name_mapping)) {
+        var_name_to_if_expr_mappings[[var_name]] <- list()
+        var_name_to_if_expr_mappings[[var_name]][[1]] <- new_var_name_to_if_expr_map
+      } else {
+        current_var_name_mapping[[length(current_var_name_mapping) + 1]] <- new_var_name_to_if_expr_map
+        var_name_to_if_expr_mappings[[var_name]] <- current_var_name_mapping
+      }
+    }
   }
   
-  return(getPmmlStringForExpr(expr, tokens, get_pmml_str_for_row_access))
+  var_names <- names(var_name_to_if_expr_mappings)
+  pmml_str <- ''
+  for(i in 1:length(var_names)) {
+    pmml_str_for_var <- ''
+    
+    cur_var_name <- var_names[[i]]
+    
+    reverse_cond_expr_mappings <- rev(var_name_to_if_expr_mappings[[cur_var_name]])
+    if(is.na(reverse_cond_expr_mappings[[1]]$cond_expr_id) == FALSE) {
+      pmml_str_for_var <- '<Constant dataType="NULL">NULL</Constant>'
+    }
+    for(j in 1:length(reverse_cond_expr_mappings)) {
+      cur_cond_expr_mapping <- reverse_cond_expr_mappings[[j]]
+      
+      pmml_str_for_cond <- ''
+      if(is.na(cur_cond_expr_mapping$cond_expr_id) == FALSE) {
+        pmml_str_for_cond <- define_function.get_pmml_str_for_expr(
+          getTokenWithId(cur_cond_expr_mapping$cond_expr_id, tokens),
+          tokens,
+          orig_func_name
+        )
+      }
+      pmml_str_for_expr <- define_function.get_pmml_str_for_token(
+        getTokenWithAssignmentCode(
+          getDescendantsOfToken(getTokenWithId(cur_cond_expr_mapping$expr_id, tokens), tokens)
+        ),
+        tokens,
+        orig_func_name
+      )
+      
+      if(is.na(cur_cond_expr_mapping$cond_expr_id) == FALSE) {
+        pmml_str_for_var <- glue::glue('<Apply function="if">{pmml_str_for_cond}{pmml_str_for_expr}{pmml_str_for_var}</Apply>')
+      } else {
+        pmml_str_for_var <- pmml_str_for_expr
+      }
+    }
+    
+    inner_func_name <- glue::glue("{orig_func_name}({cur_var_name})")
+    pmml_str <- paste(pmml_str, getPmmlStringForDefineFunction(inner_func_name, orig_func_param_tokens, pmml_str_for_var), sep = '')
+  }
+  
+  return(pmml_str)
+}
+
+define_function.get_pmml_str_for_expr <- function(expr, tokens, orig_func_name, orig_func_param_tokens) {
+  return(
+    expr.generic_get_pmml_str_for_expr(
+      get_pmml_str_for_row_access,
+      function() {return("")},
+      function(cond_expr_id_to_block_expr_ids_mappings) {
+        return(get_pmml_str_for_if_expr(cond_expr_id_to_block_expr_ids_mappings, tokens, orig_func_name, orig_func_param_tokens))
+      }
+    )(expr, tokens)
+  )
+}
+
+define_function.get_pmml_str_for_token <- function(token, tokens, orig_func_name, orig_func_param_tokens) {
+  get_pmml_str_for_token <- pmml.generic_get_pmml_str_for_token(define_function.get_pmml_str_for_expr)
+  
+  return(get_pmml_str_for_token(token, tokens, tokens.create_empty_tokens_df(), list(),  orig_func_name, orig_func_param_tokens))
 }
 
 getPmmlStringForExprTokenWithinFunction <- function(inner_func_name, innerFunctionExprToken, originalFunctionArgTokens, originalFunctionName, defaultedArgTokens, tokens) {
-  #Get the expression token which has the initialization code
-  initializationExprToken <- getTokenWithAssignmentCode(getChildTokensForParent(innerFunctionExprToken, tokens))
-  
-  #Convert the expression which has the initialization code into it's PMML string
-  pmmlStringForInitializationExprToken <- define_function.get_pmml_str_for_expr(initializationExprToken, tokens)
-  
+  pmmlStringForInitializationExprToken <- ''
+  if(if_expr.is(innerFunctionExprToken, tokens)) {
+    pmmlStringForInitializationExprToken <- define_function.get_pmml_str_for_expr(innerFunctionExprToken, tokens, originalFunctionName, originalFunctionArgTokens)
+  } else {
+    #Get the expression token which has the initialization code
+    initializationExprToken <- getTokenWithAssignmentCode(getChildTokensForParent(innerFunctionExprToken, tokens))
+    
+    pmmlStringForInitializationExprToken <- define_function.get_pmml_str_for_expr(initializationExprToken, tokens, originalFunctionName)
+  }
+
   originalFunctionArgNames <- originalFunctionArgTokens$text
+  
   #Get all the symbols within this expression which are not part of the original function arguments. These need to be converted to Function calls in the PMML string for this expression
-  symbolsNotPartOfOriginalFunctionArgs <- getSymbolsInTokens(getDescendantsOfToken(initializationExprToken, tokens))
+  symbolsNotPartOfOriginalFunctionArgs <- getSymbolsInTokens(getDescendantsOfToken(innerFunctionExprToken, tokens))
+  symbolsNotPartOfOriginalFunctionArgs <- symbolsNotPartOfOriginalFunctionArgs[isLeftAssignmentSymbolToken(symbolsNotPartOfOriginalFunctionArgs, tokens) == FALSE, ]
   symbolsNotPartOfOriginalFunctionArgs <- subset(symbolsNotPartOfOriginalFunctionArgs, !(symbolsNotPartOfOriginalFunctionArgs$text %in% originalFunctionArgNames))
   
   if(nrow(symbolsNotPartOfOriginalFunctionArgs) != 0) {
@@ -183,7 +275,7 @@ getPmmlStringForExprTokenWithinFunction <- function(inner_func_name, innerFuncti
       rFunctionCallStringForCurrentSymbol <- glue::glue('{rFunctionName}({rArgumentsIntoFunctionString})')
       tokensForRFunctionCallString <- getParseData(parse(text = rFunctionCallStringForCurrentSymbol))
       
-      pmmlStringForFunctionCallForCurrentSymbol <- getPmmlStringForExpr(tokensForRFunctionCallString[1, ], tokensForRFunctionCallString)
+      pmmlStringForFunctionCallForCurrentSymbol <- define_function.get_pmml_str_for_expr(tokensForRFunctionCallString[1, ], tokensForRFunctionCallString, originalFunctionName)
       
       #Replace the function name with the actual one. We used the above one since R would have a problem with the one we use
       pmmlStringForFunctionCallForCurrentSymbol <- gsub(rFunctionName, getFunctionNameForInnerFunctionExprToken(originalFunctionName, symbolName), pmmlStringForFunctionCallForCurrentSymbol)
@@ -194,7 +286,10 @@ getPmmlStringForExprTokenWithinFunction <- function(inner_func_name, innerFuncti
   
   pmmlStringForInitializationExprToken <- getPmmlStringWithDefaultedArgsCorrectlySet(defaultedArgTokens, originalFunctionArgTokens, pmmlStringForInitializationExprToken)
   
-  defineFunctionPmmlString <- getPmmlStringForDefineFunction(inner_func_name, originalFunctionArgTokens, pmmlStringForInitializationExprToken)
+  defineFunctionPmmlString <- pmmlStringForInitializationExprToken
+  if(if_expr.is(innerFunctionExprToken, tokens) == FALSE) {
+    defineFunctionPmmlString <- getPmmlStringForDefineFunction(inner_func_name, originalFunctionArgTokens, pmmlStringForInitializationExprToken)
+  }
   
   #Return the final DefineFunction PMML string
   return(defineFunctionPmmlString)
@@ -218,20 +313,13 @@ define_function.get_row_args <- function(func_body_exprs, function_args, tokens)
   for(i in 1:nrow(func_body_exprs)) {
     token_with_assignment_code <- NA
     func_body_expr <- func_body_exprs[i, ]
-    if(define_function.is_return_expr(func_body_expr, tokens)) {
-      token_with_assignment_code <- define_function.get_return_arg_expr(func_body_expr, tokens)
-    } else {
-      token_with_assignment_code <- getTokenWithAssignmentCode(
-        getChildTokensForParent(func_body_expr, tokens)
-      )
-    }
     
     # For this expression
     # 1. Get all the symbol tokens which are descendants of this expr and is
     # a function parameter
     # 2. Check whether this function parameter is used as a row from a # dataframe. If it is then add it to the list row_args
     # Step 1
-    descendant_symbol_tokens <- getSymbolsInTokens(getDescendantsOfToken(token_with_assignment_code, tokens))
+    descendant_symbol_tokens <- getSymbolsInTokens(getDescendantsOfToken(func_body_expr, tokens))
     descendant_arg_symbol_tokens <- descendant_symbol_tokens[descendant_symbol_tokens$text %in% function_args, ]
     # Step 2
     if(nrow(descendant_arg_symbol_tokens) > 0) {
