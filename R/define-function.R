@@ -1,6 +1,6 @@
 source("R/strings.R")
 print("Sourcing expr-token")
-source("R/tokens/expr-token.R")
+source(file.path(getwd(), 'R', './tokens/expr-token.R'))
 
 define_function.get_pmml_string <- function(tokens, functionName) {
   functionTokens <- getFunctionTokens(tokens)
