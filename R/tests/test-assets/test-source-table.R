@@ -1,1 +1,0 @@
-table <- read.csv(file.path(getwd(), 'R/tests/test-assets/table.csv'))

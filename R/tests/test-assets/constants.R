@@ -1,1 +1,0 @@
-stringConstant <- 'testString'
