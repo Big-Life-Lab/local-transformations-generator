@@ -172,7 +172,7 @@ derived_field.get_pmml_str_for_var <- function(var_name, expr, tokens, comment_t
     
     tokenWithAssignmentCode <- child_tokens[3, ]
     
-    transformations_pmml_str <- get_pmml_str_for_token(tokenWithAssignmentCode, tokens, comment_tokens)
+    transformations_pmml_str <- get_pmml_str_for_token(tokenWithAssignmentCode, tokens, comment_tokens, evaluated_variables)
     return(paste(
       define_function_pmml_strs,
       glue::glue('<DerivedField name="{var_name}" optype="continuous">{transformations_pmml_str}</DerivedField>'),
