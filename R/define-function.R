@@ -151,7 +151,6 @@ test_unsupported_exprs <- function(top_level_expr, tokens) {
 }
 
 get_pmml_str_for_row_access <- function(expr, tokens) {
-  print("inside")
   row_var_name <- dollar_op.get_var(expr, tokens)
   inner_text <- paste("{", row_var_name, "}", sep = "")
   return(dollar_op.get_pmml_node(expr, tokens, inner_text))
