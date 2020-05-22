@@ -140,3 +140,40 @@ test_that("If expressions inside functions that are not the last expression are 
   
   expect_equal(actual_pmml, expected_pmml)
 })
+
+test_that("If expressions inside functions as the last expressions are correctly generated",  {
+  expected_pmml <- gsub("[\r\n]", "", '
+<PMML>
+<LocalTransformations>
+<DefineFunction name="test">
+<ParameterField name="a" dataType="double"/>
+<ParameterField name="b" dataType="double"/>
+<Apply function="if">
+<Apply function="equal">
+<FieldRef field="a"/>
+<Constant dataType="double">1</Constant>
+</Apply>
+<Constant dataType="double">1</Constant>
+<Apply function="if">
+<Apply function="equal">
+<FieldRef field="b"/>
+<Constant dataType="double">2</Constant>
+</Apply>
+<Constant dataType="double">2</Constant>
+<Apply function="if">
+<Apply function="equal">
+<FieldRef field="a"/>
+<Constant dataType="double">3</Constant>
+</Apply>
+<Constant dataType="double">3</Constant>
+<Constant dataType="double">4</Constant>
+</Apply>
+</Apply>
+</Apply>
+</DefineFunction>
+</LocalTransformations>
+</PMML>')
+  actual_pmml <- getPmmlStringFromRFile(file.path(getwd(), "../../assets/test/test-if/code/test-if-code-3.R"), srcFile = TRUE)
+  
+  expect_equal(actual_pmml, expected_pmml)
+})

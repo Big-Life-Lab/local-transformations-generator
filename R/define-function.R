@@ -57,24 +57,28 @@ define_function.get_pmml_string <- function(tokens, functionName) {
     }
     #It's the last expression so it has to be a function return call
     else {
-      # There are two way to return a value in PMML. One way is just return what the last expression does or use an explicit return statement
-      # We initially assume that it's the first way
-      returnArgExprToken <- topLevelFunctionBodyExprTokens[i, ];
-      
-      # For the first way if there is a left assign then we need to set the return expr to the expr token which is the right hand side of the assignment
-      childTokensForReturnArgExprToken <- getChildTokensForParent(returnArgExprToken, tokens)
-      # Check if there's a left assign. If there is then the right hand assignment expr token is the third child
-      if(doesTokensHaveALeftAssign(childTokensForReturnArgExprToken)) {
-        returnArgExprToken <- childTokensForReturnArgExprToken[3, ]
+      returnArgExprToken <- topLevelFunctionBodyExprTokens[i, ]
+      pmmlStringForReturnArgExprToken <- ''
+      if(if_expr.is(returnArgExprToken, tokens)) {
+        pmmlStringForReturnArgExprToken <- define_function.get_pmml_str_for_expr(
+          returnArgExprToken, tokens, functionName, function_param_name_tokens, TRUE
+        )
+      } else {
+        # For the first way if there is a left assign then we need to set the return expr to the expr token which is the right hand side of the assignment
+        childTokensForReturnArgExprToken <- getChildTokensForParent(returnArgExprToken, tokens)
+        # Check if there's a left assign. If there is then the right hand assignment expr token is the third child
+        if(doesTokensHaveALeftAssign(childTokensForReturnArgExprToken)) {
+          returnArgExprToken <- childTokensForReturnArgExprToken[3, ]
+        }
+        # Check if it's the second way and if it is
+        else if(nrow(getSymbolFunctionCallsWithText('return', getDescendantsOfToken(returnArgExprToken, tokens))) == 1) {
+          #Get the expression for the argument to the return function call
+          returnArgExprToken <- getExprTokens(getChildTokensForParent(topLevelFunctionBodyExprTokens[i, ], tokens))[2, ]
+        }
+        
+        #Convert the expression to it's PMML string
+        pmmlStringForReturnArgExprToken <- define_function.get_pmml_str_for_expr(returnArgExprToken, getDescendantsOfToken(returnArgExprToken, tokens), functionName, function_param_name_tokens, TRUE)
       }
-      # Check if it's the second way and if it is
-      else if(nrow(getSymbolFunctionCallsWithText('return', getDescendantsOfToken(returnArgExprToken, tokens))) == 1) {
-        #Get the expression for the argument to the return function call
-        returnArgExprToken <- getExprTokens(getChildTokensForParent(topLevelFunctionBodyExprTokens[i, ], tokens))[2, ]
-      }
-      
-      #Convert the expression to it's PMML string
-      pmmlStringForReturnArgExprToken <- define_function.get_pmml_str_for_expr(returnArgExprToken, getDescendantsOfToken(returnArgExprToken, tokens))
       
       #Find all the symbols used within the expression which are not part of the function arguments
       symbolsWithinReturnArgExprWhichAreNotFunctionArguments <- getSymbolsInTokens(getDescendantsOfToken(returnArgExprToken, tokens))
@@ -93,7 +97,7 @@ define_function.get_pmml_string <- function(tokens, functionName) {
           rFunctionArgs <- getRArgumentsIntoFunctionString(non_row_function_arg_tokens)
           rCode <- glue::glue('{rFunctionNameForCurrentSymbol}({rFunctionArgs})')
           tokensForRCode <- getParseData(parse(text = rCode))
-          pmmlStringForRCode <- define_function.get_pmml_str_for_expr(tokensForRCode[1, ], tokensForRCode, functionName)
+          pmmlStringForRCode <- define_function.get_pmml_str_for_expr(tokensForRCode[1, ], tokensForRCode, functionName, function_param_name_tokens, TRUE)
           pmmlStringForRCode <- gsub(
             rFunctionNameForCurrentSymbol,
             getFunctionNameForInnerFunctionExprToken(functionName, symbolsWithinReturnArgExprWhichAreNotFunctionArguments[j, 'text']),
@@ -153,104 +157,172 @@ get_pmml_str_for_row_access <- function(expr, tokens) {
 }
 
 
-get_pmml_str_for_if_expr <- function(cond_expr_to_block_exprs_mappings, tokens, orig_func_name, orig_func_param_tokens) {
-  var_name_to_if_expr_mappings <- list()
-  for(i in 1:length(cond_expr_to_block_exprs_mappings)) {
-    current_map <- cond_expr_to_block_exprs_mappings[[i]]
-    
-    for(j in 1:length(current_map$block_expr_ids)) {
-      current_block_expr_id <- current_map$block_expr_ids[[j]]
+get_pmml_str_for_if_expr <- function(cond_expr_to_block_exprs_mappings, tokens, orig_func_name, orig_func_param_tokens, is_last_expr) {
+  if(is_last_expr == FALSE) {
+    var_name_to_if_expr_mappings <- list()
+    for(i in 1:length(cond_expr_to_block_exprs_mappings)) {
+      current_map <- cond_expr_to_block_exprs_mappings[[i]]
       
-      var_name <- util.get_var_and_func_names(
-        getDescendantsOfToken(getTokenWithId(current_block_expr_id, tokens), tokens)
-      )[[1]]
-      new_var_name_to_if_expr_map <- list(
-        cond_expr_id = current_map$cond_expr_id,
-        expr_id = current_block_expr_id
-      )
-      
-      current_var_name_mapping <- var_name_to_if_expr_mappings[[var_name]]
-      if(is.null(current_var_name_mapping)) {
-        var_name_to_if_expr_mappings[[var_name]] <- list()
-        var_name_to_if_expr_mappings[[var_name]][[1]] <- new_var_name_to_if_expr_map
-      } else {
-        current_var_name_mapping[[length(current_var_name_mapping) + 1]] <- new_var_name_to_if_expr_map
-        var_name_to_if_expr_mappings[[var_name]] <- current_var_name_mapping
+      for(j in 1:length(current_map$block_expr_ids)) {
+        current_block_expr_id <- current_map$block_expr_ids[[j]]
+        
+        var_name <- util.get_var_and_func_names(
+          getDescendantsOfToken(getTokenWithId(current_block_expr_id, tokens), tokens)
+        )[[1]]
+        new_var_name_to_if_expr_map <- list(
+          cond_expr_id = current_map$cond_expr_id,
+          expr_id = current_block_expr_id
+        )
+        
+        current_var_name_mapping <- var_name_to_if_expr_mappings[[var_name]]
+        if(is.null(current_var_name_mapping)) {
+          var_name_to_if_expr_mappings[[var_name]] <- list()
+          var_name_to_if_expr_mappings[[var_name]][[1]] <- new_var_name_to_if_expr_map
+        } else {
+          current_var_name_mapping[[length(current_var_name_mapping) + 1]] <- new_var_name_to_if_expr_map
+          var_name_to_if_expr_mappings[[var_name]] <- current_var_name_mapping
+        }
       }
     }
-  }
-  
-  var_names <- names(var_name_to_if_expr_mappings)
-  pmml_str <- ''
-  for(i in 1:length(var_names)) {
-    pmml_str_for_var <- ''
     
-    cur_var_name <- var_names[[i]]
-    
-    reverse_cond_expr_mappings <- rev(var_name_to_if_expr_mappings[[cur_var_name]])
-    if(is.na(reverse_cond_expr_mappings[[1]]$cond_expr_id) == FALSE) {
-      pmml_str_for_var <- '<Constant dataType="NULL">NULL</Constant>'
-    }
-    for(j in 1:length(reverse_cond_expr_mappings)) {
-      cur_cond_expr_mapping <- reverse_cond_expr_mappings[[j]]
+    var_names <- names(var_name_to_if_expr_mappings)
+    pmml_str <- ''
+    for(i in 1:length(var_names)) {
+      pmml_str_for_var <- ''
       
-      pmml_str_for_cond <- ''
-      if(is.na(cur_cond_expr_mapping$cond_expr_id) == FALSE) {
-        pmml_str_for_cond <- define_function.get_pmml_str_for_expr(
-          getTokenWithId(cur_cond_expr_mapping$cond_expr_id, tokens),
+      cur_var_name <- var_names[[i]]
+      
+      reverse_cond_expr_mappings <- rev(var_name_to_if_expr_mappings[[cur_var_name]])
+      if(is.na(reverse_cond_expr_mappings[[1]]$cond_expr_id) == FALSE) {
+        pmml_str_for_var <- '<Constant dataType="NULL">NULL</Constant>'
+      }
+      for(j in 1:length(reverse_cond_expr_mappings)) {
+        cur_cond_expr_mapping <- reverse_cond_expr_mappings[[j]]
+        
+        pmml_str_for_cond <- ''
+        if(is.na(cur_cond_expr_mapping$cond_expr_id) == FALSE) {
+          pmml_str_for_cond <- define_function.get_pmml_str_for_expr(
+            getTokenWithId(cur_cond_expr_mapping$cond_expr_id, tokens),
+            tokens,
+            orig_func_name,
+            orig_func_param_tokens,
+            is_last_expr
+          )
+        }
+        pmml_str_for_expr <- define_function.get_pmml_str_for_token(
+          getTokenWithAssignmentCode(
+            getDescendantsOfToken(getTokenWithId(cur_cond_expr_mapping$expr_id, tokens), tokens)
+          ),
           tokens,
-          orig_func_name
+          orig_func_name,
+          orig_func_param_tokens,
+          is_last_expr
+        )
+        
+        if(is.na(cur_cond_expr_mapping$cond_expr_id) == FALSE) {
+          pmml_str_for_var <- glue::glue('<Apply function="if">{pmml_str_for_cond}{pmml_str_for_expr}{pmml_str_for_var}</Apply>')
+        } else {
+          pmml_str_for_var <- pmml_str_for_expr
+        }
+      }
+      
+      inner_func_name <- glue::glue("{orig_func_name}({cur_var_name})")
+      pmml_str <- paste(pmml_str, getPmmlStringForDefineFunction(inner_func_name, orig_func_param_tokens, pmml_str_for_var), sep = '')
+    }
+    
+    return(pmml_str)
+  } else {
+    new_cond_expr_to_block_expr_mappings <- list()
+    for(i in 1:length(cond_expr_to_block_exprs_mappings)) {
+      current_mapping <- cond_expr_to_block_exprs_mappings[[i]]
+      new_cond_expr_to_block_expr_map <- list(
+        cond_expr_id = current_mapping$cond_expr_id,
+        expr_id = current_mapping$block_expr_ids[[length(current_mapping$block_expr_ids)]]
+      )
+      
+      new_cond_expr_to_block_expr_mappings[[length(new_cond_expr_to_block_expr_mappings) + 1]] <- new_cond_expr_to_block_expr_map
+    }
+    
+    pmml_str <- ''
+    rev_cond_expr_to_block_expr_maps <- rev(new_cond_expr_to_block_expr_mappings)
+    for(i in 1:length(rev_cond_expr_to_block_expr_maps)) {
+      current_mapping <- rev_cond_expr_to_block_expr_maps[[i]]
+      
+      if(i == 1 & is.na(current_mapping$cond_expr_id) == FALSE) {
+        pmml_str <- '<Constant dataType="NULL">NULL</Constant>'
+      }
+      
+      cond_pmml_str <- NA
+      if(is.na(current_mapping$cond_expr_id) == FALSE) {
+        cond_pmml_str <- define_function.get_pmml_str_for_expr(
+          getTokenWithId(current_mapping$cond_expr_id, tokens),
+          tokens,
+          orig_func_name,
+          orig_func_param_tokens,
+          is_last_expr
         )
       }
-      pmml_str_for_expr <- define_function.get_pmml_str_for_token(
-        getTokenWithAssignmentCode(
-          getDescendantsOfToken(getTokenWithId(cur_cond_expr_mapping$expr_id, tokens), tokens)
-        ),
-        tokens,
-        orig_func_name
-      )
       
-      if(is.na(cur_cond_expr_mapping$cond_expr_id) == FALSE) {
-        pmml_str_for_var <- glue::glue('<Apply function="if">{pmml_str_for_cond}{pmml_str_for_expr}{pmml_str_for_var}</Apply>')
+      expr_pmml_str <- ''
+      expr_token_to_run <- getTokenWithId(current_mapping$expr_id, tokens)
+      if(expr_token.is_assignment_expr(expr_token_to_run, tokens)) {
+        assignment_token <- getTokenWithAssignmentCode(
+          getDescendantsOfToken(expr_token_to_run, tokens)
+        )
+        
+        expr_pmml_str <- define_function.get_pmml_str_for_token(
+          assignment_token, tokens, orig_func_name, orig_func_param_tokens, is_last_expr
+        )
+      } else if(symbol_function_call_token.is_expr_symbol_function_call_with_name(expr_token_to_run, token_constants.return_symbol_function_call_text, tokens)) {
+        expr_pmml_str <- define_function.get_pmml_str_for_expr(
+          function_call.get_function_arg_expr_tokens(expr_token_to_run, tokens)[1, ],
+          tokens,
+          orig_func_name,
+          orig_func_param_tokens,
+          is_last_expr
+        )
       } else {
-        pmml_str_for_var <- pmml_str_for_expr
+        expr_pmml_str <- define_function.get_pmml_str_for_token(expr_token_to_run, tokens, orig_func_name, orig_func_param_tokens, is_last_expr)
+      }
+      
+      if(is.na(current_mapping$cond_expr_id) == FALSE) {
+        pmml_str <- glue::glue('<Apply function="if">{cond_pmml_str}{expr_pmml_str}{pmml_str}</Apply>')
+      } else {
+        pmml_str <- expr_pmml_str
       }
     }
     
-    inner_func_name <- glue::glue("{orig_func_name}({cur_var_name})")
-    pmml_str <- paste(pmml_str, getPmmlStringForDefineFunction(inner_func_name, orig_func_param_tokens, pmml_str_for_var), sep = '')
+    return(pmml_str)
   }
-  
-  return(pmml_str)
 }
 
-define_function.get_pmml_str_for_expr <- function(expr, tokens, orig_func_name, orig_func_param_tokens) {
+define_function.get_pmml_str_for_expr <- function(expr, tokens, orig_func_name, orig_func_param_tokens, is_last_expr) {
   return(
     expr.generic_get_pmml_str_for_expr(
       get_pmml_str_for_row_access,
       function() {return("")},
       function(cond_expr_id_to_block_expr_ids_mappings) {
-        return(get_pmml_str_for_if_expr(cond_expr_id_to_block_expr_ids_mappings, tokens, orig_func_name, orig_func_param_tokens))
+        return(get_pmml_str_for_if_expr(cond_expr_id_to_block_expr_ids_mappings, tokens, orig_func_name, orig_func_param_tokens, is_last_expr))
       }
     )(expr, tokens)
   )
 }
 
-define_function.get_pmml_str_for_token <- function(token, tokens, orig_func_name, orig_func_param_tokens) {
+define_function.get_pmml_str_for_token <- function(token, tokens, orig_func_name, orig_func_param_tokens, is_last_expr) {
   get_pmml_str_for_token <- pmml.generic_get_pmml_str_for_token(define_function.get_pmml_str_for_expr)
   
-  return(get_pmml_str_for_token(token, tokens, tokens.create_empty_tokens_df(), list(),  orig_func_name, orig_func_param_tokens))
+  return(get_pmml_str_for_token(token, tokens, tokens.create_empty_tokens_df(), list(),  orig_func_name, orig_func_param_tokens, is_last_expr))
 }
 
 getPmmlStringForExprTokenWithinFunction <- function(inner_func_name, innerFunctionExprToken, originalFunctionArgTokens, originalFunctionName, defaultedArgTokens, tokens) {
   pmmlStringForInitializationExprToken <- ''
   if(if_expr.is(innerFunctionExprToken, tokens)) {
-    pmmlStringForInitializationExprToken <- define_function.get_pmml_str_for_expr(innerFunctionExprToken, tokens, originalFunctionName, originalFunctionArgTokens)
+    pmmlStringForInitializationExprToken <- define_function.get_pmml_str_for_expr(innerFunctionExprToken, tokens, originalFunctionName, originalFunctionArgTokens, FALSE)
   } else {
     #Get the expression token which has the initialization code
     initializationExprToken <- getTokenWithAssignmentCode(getChildTokensForParent(innerFunctionExprToken, tokens))
     
-    pmmlStringForInitializationExprToken <- define_function.get_pmml_str_for_expr(initializationExprToken, tokens, originalFunctionName)
+    pmmlStringForInitializationExprToken <- define_function.get_pmml_str_for_expr(initializationExprToken, tokens, originalFunctionName, FALSE)
   }
 
   originalFunctionArgNames <- originalFunctionArgTokens$text
@@ -275,7 +347,7 @@ getPmmlStringForExprTokenWithinFunction <- function(inner_func_name, innerFuncti
       rFunctionCallStringForCurrentSymbol <- glue::glue('{rFunctionName}({rArgumentsIntoFunctionString})')
       tokensForRFunctionCallString <- getParseData(parse(text = rFunctionCallStringForCurrentSymbol))
       
-      pmmlStringForFunctionCallForCurrentSymbol <- define_function.get_pmml_str_for_expr(tokensForRFunctionCallString[1, ], tokensForRFunctionCallString, originalFunctionName)
+      pmmlStringForFunctionCallForCurrentSymbol <- define_function.get_pmml_str_for_expr(tokensForRFunctionCallString[1, ], tokensForRFunctionCallString, originalFunctionName, FALSE)
       
       #Replace the function name with the actual one. We used the above one since R would have a problem with the one we use
       pmmlStringForFunctionCallForCurrentSymbol <- gsub(rFunctionName, getFunctionNameForInnerFunctionExprToken(originalFunctionName, symbolName), pmmlStringForFunctionCallForCurrentSymbol)

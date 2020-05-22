@@ -11,6 +11,7 @@ source('R/globals/gl-row-functions.R')
 source('R/globals/gl-row-vars.R')
 source('R/expr.R')
 source('R/derived-field.R')
+source('R/tokens/tokens.R')
 
 isDataFrameShortAccessExpr <- function(exprToCheck, tokens) {
   childTokens <- getChildTokensForParent(exprToCheck, tokens)
