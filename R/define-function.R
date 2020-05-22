@@ -1,4 +1,5 @@
 source("R/strings.R")
+source("R/tokens/expr-token.R")
 
 define_function.get_pmml_string <- function(tokens, functionName) {
   functionTokens <- getFunctionTokens(tokens)
