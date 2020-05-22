@@ -9,3 +9,7 @@ expr_token.is_assignment_expr <- function(expr, tokens) {
   
   return(child_tokens[2, ]$token == LEFT_ASSIGN_TOKEN)
 }
+
+test_function <- function() {
+  print("inside test function")
+}
