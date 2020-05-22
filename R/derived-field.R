@@ -82,7 +82,10 @@ derived_field.get_pmml_str_for_var <- function(var_name, expr, tokens, comment_t
       }
       define_function_pmml_strs <<- paste(define_function_pmml_strs, define_function_pmml_str, sep = '')
       
-      func_args_pmml_str <- function_call.get_pmml_str_for_arg_exprs(non_row_func_arg_expr_tokens, tokens)
+      func_args_pmml_str <- ''
+      for(i in 1:nrow(non_row_func_arg_expr_tokens)) {
+        func_args_pmml_str <- get_pmml_str_for_expr(non_row_func_arg_expr_tokens[i, ], tokens) 
+      }
       
       return(glue::glue('<Apply function="{new_func_name}">{func_args_pmml_str}</Apply>'))
     }
@@ -169,7 +172,7 @@ derived_field.get_pmml_str_for_var <- function(var_name, expr, tokens, comment_t
     
     tokenWithAssignmentCode <- child_tokens[3, ]
     
-    pmml_str_for_var <- get_pmml_str_for_token(tokenWithAssignmentCode, tokens, comment_tokens)
+    transformations_pmml_str <- get_pmml_str_for_token(tokenWithAssignmentCode, tokens, comment_tokens)
     return(paste(
       define_function_pmml_strs,
       glue::glue('<DerivedField name="{var_name}" optype="continuous">{transformations_pmml_str}</DerivedField>'),

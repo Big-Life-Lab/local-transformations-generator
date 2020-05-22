@@ -84,7 +84,7 @@ getRArgumentsIntoFunctionString <- function(originalFunctionArgTokens) {
   return(rArgumentsIntoFunctionString)
 }
 
-getDefineFunctionForDefaultArgExpr <- function(argSymbolFormal, allArgSymbolFormals, tokens) {
+getDefineFunctionForDefaultArgExpr <- function(argSymbolFormal, allArgSymbolFormals, tokens, func_name, function_param_tokens) {
   possibleEqFormalsToken <- getTokenWithId(argSymbolFormal$id+1, tokens)
   doesArgHaveDefaultValue <- possibleEqFormalsToken$token == EQ_FORMALS
 
@@ -99,7 +99,7 @@ getDefineFunctionForDefaultArgExpr <- function(argSymbolFormal, allArgSymbolForm
 
     defaultValue <- NA
     if(tokenAfterEqFormalsToken$token == EXPR_TOKEN) {
-      defaultValue <- getPmmlStringForExpr(tokenAfterEqFormalsToken, tokens)
+      defaultValue <- define_function.get_pmml_str_for_expr(tokenAfterEqFormalsToken, tokens, func_name, function_param_tokens, FALSE)
     } else {
       defaultValue <- getPmmlStringForConstant(tokenAfterEqFormalsToken)
     }
