@@ -1,9 +1,8 @@
 library('rstudioapi')
 library('glue')
+source(file.path(getwd(), 'R', 'local-transformations-generator.R'))
 
 pmmlAddin <- function() {
-  source(file.path(getwd(), 'R', 'local-transformations-generator.R'))
-  
   rFilePath <- rstudioapi::getActiveDocumentContext()$path
 
   outDirPath <- file.path(getwd(), 'out')
