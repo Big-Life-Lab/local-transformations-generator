@@ -57,7 +57,7 @@ expr.generic_get_pmml_str_for_expr <- function(
           
           # Handle c functions by taking the arguments to the functions and concating the pmml string for each argument
           if(functionSymbolToken$text == 'c') {
-            return(function_call.get_pmml_str_for_args(expr, tokens))
+            return(get_pmml_str_for_arg_exprs(function_call.get_function_arg_expr_tokens(expr, tokens), tokens))
           } else if(functionSymbolToken$text == 'exists') {
             function_arg_expr_tokens <- function_call.get_function_arg_expr_tokens(expr, tokens)
             exitsArg <- formatConstantTokenText(getTokensWithParent(function_arg_expr_tokens[1, 'id'], tokens)[1, ])
@@ -68,14 +68,7 @@ expr.generic_get_pmml_str_for_expr <- function(
             # Get the PMML string for the arguments passed into the function represented
             # by the function call expr in the func_call_expr arg
             function_arg_expr_tokens <- function_call.get_function_arg_expr_tokens(expr, tokens)
-            functionArgsSymbolTokensPmmlString <- ''
-            for(i in 1:nrow(function_arg_expr_tokens)) {
-              functionArgsSymbolTokensPmmlString <- paste(
-                functionArgsSymbolTokensPmmlString,
-                get_pmml_str_for_expr(function_arg_expr_tokens[i, ], tokens),
-                sep=''
-              )
-            }
+            functionArgsSymbolTokensPmmlString <- get_pmml_str_for_arg_exprs(function_arg_expr_tokens, tokens)
             
             return(getPmmlStringForSymbolFunctionCall(functionSymbolToken, functionArgsSymbolTokensPmmlString))
           }
@@ -112,6 +105,19 @@ expr.generic_get_pmml_str_for_expr <- function(
         return(pmmlStringForExprTokens)
       }
     } 
+  }
+  
+  get_pmml_str_for_arg_exprs <- function(arg_expr_tokens, tokens) {
+    functionArgsSymbolTokensPmmlString <- ''
+    for(i in 1:nrow(arg_expr_tokens)) {
+      functionArgsSymbolTokensPmmlString <- paste(
+        functionArgsSymbolTokensPmmlString,
+        get_pmml_str_for_expr(arg_expr_tokens[i, ], tokens),
+        sep=''
+      )
+    }
+  
+    return(functionArgsSymbolTokensPmmlString)
   }
   
   return(get_pmml_str_for_expr)
