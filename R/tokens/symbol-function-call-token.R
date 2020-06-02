@@ -1,3 +1,5 @@
+source("R/tokens/token-constants.R")
+
 symbol_function_call_token.is_expr_symbol_function_call_with_name <- function(expr, func_name, tokens) {
   child_expr_tokens <- getExprTokens(getChildTokensForParent(expr, tokens))
   

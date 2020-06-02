@@ -6,10 +6,8 @@ source('R/util.R')
 source('R/data-frame.R')
 source('R/dollar-operator.R')
 source('R/define-function.R')
-source('R/function-call.R')
 source('R/globals/gl-row-functions.R')
 source('R/globals/gl-row-vars.R')
-source('R/expr.R')
 source('R/derived-field.R')
 
 isDataFrameShortAccessExpr <- function(exprToCheck, tokens) {
@@ -338,7 +336,7 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE, mutatedVariables = d
         
         # Set the evaluated value to it's mutated variable value in the evaluated variables environment
         evaluated_variables[[mutatedVariableName]] <- evaluatedValue
-        
+
         # if the evaluated value is a data frame
         if(class(evaluatedValue) == 'data.frame') {
           # The return value is a list with the pmml string and the name of the variable to which the table was assigned
@@ -346,7 +344,6 @@ getPmmlStringFromRFile <- function(filePath, srcFile=FALSE, mutatedVariables = d
           
           # Add the pmml table string to the taxonomy string
           taxonomy <- paste(taxonomy, returnValues[1], sep = '')
-          #print(returnValues[2])
         }
         else if(doesTokensHaveFunctionDefinition(tokensForCurrentParentIndex) == TRUE) {
           localTransformationString <- paste(localTransformationString, define_function.get_pmml_string(tokensForCurrentParentIndex, mutatedVariableName), sep='')

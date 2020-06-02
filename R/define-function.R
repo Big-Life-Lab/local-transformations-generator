@@ -1,6 +1,8 @@
 source("R/strings.R")
-print("Sourcing expr-token")
 source(file.path(getwd(), 'R', './tokens/expr-token.R'))
+source("R/tokens/symbol-function-call-token.R")
+source("R/pmml.R")
+source("R/expr.R")
 
 define_function.get_pmml_string <- function(tokens, functionName) {
   functionTokens <- getFunctionTokens(tokens)
@@ -267,8 +269,7 @@ get_pmml_str_for_if_expr <- function(cond_expr_to_block_exprs_mappings, tokens, 
       
       expr_pmml_str <- ''
       expr_token_to_run <- getTokenWithId(current_mapping$expr_id, tokens)
-      print("inside define-function")
-      print(expr_token)
+
       if(expr_token.is_assignment_expr(expr_token_to_run, tokens)) {
         assignment_token <- getTokenWithAssignmentCode(
           getDescendantsOfToken(expr_token_to_run, tokens)
