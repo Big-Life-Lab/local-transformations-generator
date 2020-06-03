@@ -1,7 +1,7 @@
 context("Testing converting data frames")
 
 test_that("Data frames from read.csv are correctly generated", {
-  expected_pmml <- gsub("[\r\n]", "", '<PMML>
+  expected_pmml <- '<PMML>
 <Taxonomy name="table">
 <InlineTable>
 <row><index>1</index><col1>a</col1><col2>b</col2><col3>b</col3><out>t</out></row>
@@ -17,8 +17,7 @@ test_that("Data frames from read.csv are correctly generated", {
 </InlineTable>
 </Taxonomy>
 <LocalTransformations>
-</LocalTransformations></PMML>')
-  actual_pmml <- getPmmlStringFromRFile(file.path(getwd(), "../../assets/test/test-table/code/test-table-code-1.R"), srcFile = TRUE)
+</LocalTransformations></PMML>'
   
-  expect_equal(actual_pmml, expected_pmml)
+  test_utils.test_code_file("test-table/code/test-table-code-1.R", expected_pmml)
 })

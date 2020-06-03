@@ -1,7 +1,7 @@
 context("Testing accessing rows from data frames")
 
 test_that("Accessing rows outside functions are correctly generated", {
-  expected_pmml <- gsub("[\r\n]", "", '<PMML>
+  expected_pmml <- '<PMML>
 <LocalTransformations>
 <DerivedField name="col" optype="continuous">
 <MapValues outputColumn="col1">
@@ -10,14 +10,13 @@ test_that("Accessing rows outside functions are correctly generated", {
 </MapValues>
 </DerivedField>
 </LocalTransformations>
-</PMML>')
-  actual_pmml <- getPmmlStringFromRFile(file.path(getwd(), "../../assets/test/test-df-row/code/test-df-row-code-1.R"), srcFile = TRUE)
+</PMML>'
   
-  expect_equal(actual_pmml, expected_pmml)
+  test_utils.test_code_file("test-df-row/code/test-df-row-code-1.R", expected_pmml)
 })
 
 test_that("Accessing rows inside functions are correctly generated", {
-  expected_pmml <- gsub("[\r\n]", "", '<PMML>
+  expected_pmml <- '<PMML>
 <LocalTransformations>
 <DefineFunction name="test_col_1">
 <ParameterField name="const" dataType="double"/>
@@ -59,8 +58,7 @@ test_that("Accessing rows inside functions are correctly generated", {
 </Apply>
 </DerivedField>
 </LocalTransformations>
-</PMML>')
+</PMML>'
   
-  actual_pmml <- getPmmlStringFromRFile(file.path(getwd(), "../../assets/test/test-df-row/code/test-df-row-code-2.R"), srcFile = TRUE)
-  expect_equal(actual_pmml, expected_pmml)
+  test_utils.test_code_file("test-df-row/code/test-df-row-code-2.R", expected_pmml)
 })

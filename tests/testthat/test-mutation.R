@@ -1,7 +1,7 @@
 context("Testing converting mutations")
 
 test_that("Mutations outside functions are correctly generated", {
-  expected_pmml <- gsub("[\r\n]", "", '<PMML>
+  expected_pmml <- '<PMML>
 <LocalTransformations>
 <DerivedField name="ALWDWKY_Mutated_1" optype="continuous">
 <FieldRef field="ALWDWKY"/>
@@ -14,8 +14,7 @@ test_that("Mutations outside functions are correctly generated", {
 </DerivedField>
 <DerivedField name="SMKDSTY" optype="continuous">
 <FieldRef field="ALWDWKY_Mutated_2"/>
-</DerivedField></LocalTransformations></PMML>')
-  actual_pmml <- getPmmlStringFromRFile(file.path(getwd(), "../../assets/test/test-mutation/code/test-mutation-code-1.R"), srcFile = TRUE)
+</DerivedField></LocalTransformations></PMML>'
   
-  expect_equal(actual_pmml, expected_pmml)
+  test_utils.test_code_file("test-mutation/code/test-mutation-code-1.R", expected_pmml)
 })

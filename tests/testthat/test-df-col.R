@@ -1,9 +1,7 @@
-source("../../R/strings.R")
-
 context("Testing accessing columns from data frames")
 
 test_that("Wildcard column access expressions outside functions are correctly generated", {
-  expected_pmml <- gsub("[\r\n]", "", '<PMML>
+  expected_pmml <- '<PMML>
 <LocalTransformations>
 <DerivedField name="a" optype="continuous">
 <MapValues outputColumn="col2">
@@ -18,14 +16,13 @@ test_that("Wildcard column access expressions outside functions are correctly ge
 </MapValues>
 </DerivedField>
 </LocalTransformations>
-</PMML>')
-  actual_pmml <- getPmmlStringFromRFile(file.path(getwd(), "../../assets/test/test-df-col/code/test-df-col-code-1.R"), srcFile = TRUE)
+</PMML>'
   
-  expect_equal(actual_pmml, expected_pmml)
+  test_utils.test_code_file("test-df-col/code/test-df-col-code-1.R", expected_pmml)
 })
 
 test_that("Non-wildcard column access expressions outside functions are correctly generated", {
-  expected_pmml <- gsub("[\r\n]", "", '<PMML>
+  expected_pmml <- '<PMML>
 <LocalTransformations>
 <DerivedField name="a" optype="continuous">
 <MapValues outputColumn="c">
@@ -34,10 +31,9 @@ test_that("Non-wildcard column access expressions outside functions are correctl
 </MapValues>
 </DerivedField>
 </LocalTransformations>
-</PMML>')
-  actual_pmml <- getPmmlStringFromRFile(file.path(getwd(), "../../assets/test/test-df-col/code/test-df-col-code-2.R"), srcFile = TRUE)
+</PMML>'
   
-  expect_equal(actual_pmml, expected_pmml)
+  test_utils.test_code_file("test-df-col/code/test-df-col-code-2.R", expected_pmml)
 })
 
 test_that("Wildcard column access expressions inside functions throw an error", {

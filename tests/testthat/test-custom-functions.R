@@ -1,7 +1,7 @@
 context("Testing custom functions")
 
 test_that("Simple custom function PMML is correctly generated", {
-    expected_pmml <- gsub("[\r\n]", "", '<PMML>
+    expected_pmml <- '<PMML>
 <LocalTransformations>
 <DefineFunction name="testFunction(testTwo)">
 <ParameterField name="testOne" dataType="double"/>
@@ -17,15 +17,13 @@ test_that("Simple custom function PMML is correctly generated", {
 </Apply>
 </DefineFunction>
 </LocalTransformations>
-</PMML>')
+</PMML>'
     
-    actual_pmml <- getPmmlStringFromRFile(file.path(getwd(), "../../assets/test/test-custom-functions/code/test-define-function-code.R"), srcFile = TRUE)
-    
-    expect_equal(actual_pmml, expected_pmml)
+    test_utils.test_code_file("test-custom-functions/code/test-define-function-code.R", expected_pmml)
 })
 
 test_that("Default function arguments are correctly generated", {
-  expected_pmml <- gsub("[\r\n]", "", '<PMML>
+  expected_pmml <- '<PMML>
 <LocalTransformations>
 <DefineFunction name="default(argOne)">
 <ParameterField name="argOne" dataType="double"/>
@@ -69,23 +67,19 @@ test_that("Default function arguments are correctly generated", {
 </Apply>
 </DefineFunction>
 </LocalTransformations>
-</PMML>')
+</PMML>'
   
-  actual_pmml <- getPmmlStringFromRFile(file.path(getwd(), "../../assets/test/test-custom-functions/code/test-default-function-args-code.R"), srcFile = TRUE)
-  
-  expect_equal(actual_pmml, expected_pmml)
+  test_utils.test_code_file("test-custom-functions/code/test-default-function-args-code.R", expected_pmml)
 })
 
 test_that("No return statement function are correctly generated", {
-  expected_pmml <- gsub("[\r\n]", "", '<PMML>
+  expected_pmml <- '<PMML>
 <LocalTransformations>
 <DefineFunction name="a">
 <Constant dataType="double">1</Constant>
 </DefineFunction>
 </LocalTransformations>
-</PMML>')
+</PMML>'
   
-  actual_pmml <- getPmmlStringFromRFile(file.path(getwd(), "../../assets/test/test-custom-functions/code/test-no-return-code.R"), srcFile = TRUE)
-  
-  expect_equal(actual_pmml, expected_pmml)
+  test_utils.test_code_file("test-custom-functions/code/test-no-return-code.R", expected_pmml)
 })

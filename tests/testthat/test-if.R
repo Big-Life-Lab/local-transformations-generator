@@ -1,7 +1,7 @@
 context("Testing if expressions")
 
 test_that("If expressions outside functions are correctly generated", {
-  expected_pmml <- gsub("[\r\n]", "", '<PMML>
+  expected_pmml <- '<PMML>
 <LocalTransformations>
 <DerivedField name="b" optype="continuous">
 <Apply function="if">
@@ -52,15 +52,16 @@ test_that("If expressions outside functions are correctly generated", {
 </Apply>
 </DerivedField>
 </LocalTransformations>
-</PMML>')
-  actual_pmml <- getPmmlStringFromRFile(file.path(getwd(), "../../assets/test/test-if/code/test-if-code-1.R"), srcFile = TRUE)
-
-  expect_equal(actual_pmml, expected_pmml)
+</PMML>'
+  
+  test_utils.test_code_file(
+    "test-if/code/test-if-code-1.R",
+    expected_pmml
+  )
 })
 
 test_that("If expressions inside functions that are not the last expression are correctly generated", {
-  expected_pmml <- gsub("[\r\n]", "", '
-<PMML>
+  expected_pmml <- '<PMML>
 <LocalTransformations>
 <DefineFunction name="test(b)">
 <ParameterField name="a" dataType="double"/>
@@ -133,15 +134,13 @@ test_that("If expressions inside functions that are not the last expression are 
 </Apply>
 </DefineFunction>
 </LocalTransformations>
-</PMML>')
-  actual_pmml <- getPmmlStringFromRFile(file.path(getwd(), "../../assets/test/test-if/code/test-if-code-2.R"), srcFile = TRUE)
+</PMML>'
   
-  expect_equal(actual_pmml, expected_pmml)
+  test_utils.test_code_file("test-if/code/test-if-code-2.R", expected_pmml)
 })
 
 test_that("If expressions inside functions as the last expressions are correctly generated",  {
-  expected_pmml <- gsub("[\r\n]", "", '
-<PMML>
+  expected_pmml <- '<PMML>
 <LocalTransformations>
 <DefineFunction name="test">
 <ParameterField name="a" dataType="double"/>
@@ -170,8 +169,7 @@ test_that("If expressions inside functions as the last expressions are correctly
 </Apply>
 </DefineFunction>
 </LocalTransformations>
-</PMML>')
-  actual_pmml <- getPmmlStringFromRFile(file.path(getwd(), "../../assets/test/test-if/code/test-if-code-3.R"), srcFile = TRUE)
+</PMML>'
   
-  expect_equal(actual_pmml, expected_pmml)
+  test_utils.test_code_file("test-if/code/test-if-code-3.R", expected_pmml)
 })

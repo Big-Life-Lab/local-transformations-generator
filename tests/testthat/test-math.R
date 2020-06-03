@@ -1,7 +1,7 @@
 context("Testing converting math expressions")
 
 test_that("Math expressions outside functions are correctly generated", {
-  expected_pmml <- gsub("[\r\n]", "", '<PMML>
+  expected_pmml <- '<PMML>
 <LocalTransformations>
 <DerivedField name="c" optype="continuous">
 <Apply function="+">
@@ -16,14 +16,13 @@ test_that("Math expressions outside functions are correctly generated", {
 </Apply>
 </DerivedField>
 </LocalTransformations>
-</PMML>')
-  actual_pmml <- getPmmlStringFromRFile(file.path(getwd(), "../../assets/test/test-math/code/test-math-code-1.R"), srcFile = TRUE)
+</PMML>'
   
-  expect_equal(actual_pmml, expected_pmml)
+  test_utils.test_code_file("test-math/code/test-math-code-1.R", expected_pmml)
 })
 
 test_that("Math expressions inside functions are correctly generated", {
-  expected_pmml <- gsub("[\r\n]", "", '<PMML>
+  expected_pmml <- '<PMML>
 <LocalTransformations>
 <DefineFunction name="a">
 <ParameterField name="b" dataType="double"/>
@@ -42,8 +41,7 @@ test_that("Math expressions inside functions are correctly generated", {
 </Apply>
 </DefineFunction>
 </LocalTransformations>
-</PMML>')
-  actual_pmml <- getPmmlStringFromRFile(file.path(getwd(), "../../assets/test/test-math/code/test-math-code-2.R"), srcFile = TRUE)
+</PMML>'
   
-  expect_equal(actual_pmml, expected_pmml)
+  test_utils.test_code_file("test-math/code/test-math-code-2.R", expected_pmml)
 })

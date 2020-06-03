@@ -1,8 +1,7 @@
 context("Testing converting PMML Custom Functions")
 
 test_that("z-score functions outside functions are correctly generated", {
-  expected_pmml <- gsub("[\r\n]", "", '
-<PMML>
+  expected_pmml <- '<PMML>
 <Taxonomy name="reference_table">
 <InlineTable>
 <row><index>1</index><variable>Juice_cont</variable><mean>10</mean><sd>15</sd></row>
@@ -17,8 +16,7 @@ test_that("z-score functions outside functions are correctly generated", {
 <FieldRef field="Juice_cont"/>
 </Apply>
 </DerivedField>
-</LocalTransformations></PMML>')
-  actual_pmml <- getPmmlStringFromRFile(file.path(getwd(), "../../assets/test/test-pmml-custom-func/code/test-pmml-custom-func-code-1.R"), srcFile = TRUE)
+</LocalTransformations></PMML>'
   
-  expect_equal(actual_pmml, expected_pmml)
+  test_utils.test_code_file("test-pmml-custom-func/code/test-pmml-custom-func-code-1.R", expected_pmml)
 })
