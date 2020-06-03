@@ -10,48 +10,6 @@ source('R/globals/gl-row-functions.R')
 source('R/globals/gl-row-vars.R')
 source('R/derived-field.R')
 
-isDataFrameShortAccessExpr <- function(exprToCheck, tokens) {
-  childTokens <- getChildTokensForParent(exprToCheck, tokens)
-
-  if(nrow(childTokens) == 0) {
-    return(FALSE)
-  }
-  else if(nrow(childTokens) > 2 & childTokens[2, 'text'] == '[' & childTokens[nrow(childTokens), 'text'] == ']') {
-    return(TRUE)
-  } else {
-    return(FALSE)
-  }
-}
-
-getFirstSymbolInExpr <- function(expr, tokens) {
-  firstSymbol <- NA
-  childTokensForExpr <- getChildTokensForParent(expr, tokens)
-
-  for(i in 1:nrow(childTokensForExpr)) {
-    if(isSymbolToken(childTokensForExpr[i, ])) {
-      firstSymbol <- childTokensForExpr[i, ]
-    } else if(childTokensForExpr[i, 'token'] == 'expr') {
-      firstSymbol <- getFirstSymbolInExpr(childTokensForExpr[i, ], tokens)
-    }
-
-    if(is.na(firstSymbol) == FALSE) {
-      break
-    } else {
-      next
-    }
-  }
-
-  return(firstSymbol)
-}
-
-getPmmlStringForIfToken <- function(conditionExpr, trueResultExpr, falseResultExpr, tokens) {
-  pmmlStringForTrueExpr <- getPmmlStringForExpr(trueResultExpr, tokens)
-  pmmlStringForFalseExpr <- getPmmlStringForExpr(falseResultExpr, tokens)
-  pmmlStringForCondition <- getPmmlStringForExpr(conditionExpr, tokens)
-
-  return(glue::glue('<Apply function="if">{pmmlStringForCondition}{pmmlStringForTrueExpr}{pmmlStringForFalseExpr}</Apply>'))
-}
-
 isSymbolFunctionCallExpr <- function(exprToken, tokens) {
   exprTokensWhoseParentIsTheCurrentToken <- getExprTokens(getTokensWithParent(exprToken$id, tokens))
   

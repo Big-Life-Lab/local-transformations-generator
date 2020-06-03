@@ -60,10 +60,6 @@ getTokenWithId <- function(id, tokens) {
   return(tokens[which(tokens$id == id), ])
 }
 
-getTokensWithText <- function(text, tokens) {
-  return(tokens[which(tokens$text == text), ])
-}
-
 getFunctionTokens <- function(tokens) {
   return(tokens[which(tokens$token == FUNCTION_TOKEN), ])
 }
@@ -123,22 +119,6 @@ getDescendantsOfToken <- function(node, nodes) {
   return(nodes[which(nodes$id %in% descendantIds), ])
 }
 
-filterOutLeftAssignTokens <- function(tokens) {
-  return(tokens[which(tokens$token!=LEFT_ASSIGN_TOKEN), ])
-}
-
-filterOutSymbolsWithText <- function(text, tokens) {
-  return(tokens[which(!(tokens$text==text & tokens$token==SYMBOL_TOKEN)), ])
-}
-
-filterOutTokenWithId <- function(id, tokens) {
-  return(tokens[which(tokens$id!=id), ])
-}
-
-getAllSymbolsWithText <- function(text, tokens) {
-  return(tokens[which(tokens$text==text & tokens$token==SYMBOL_TOKEN), ])
-}
-
 getExprTokens <- function(tokens) {
   return(tokens[which(tokens$token==EXPR_TOKEN), ])
 }
@@ -170,10 +150,6 @@ doesTokensHaveALeftAssign <- function(tokens) {
 
 doesTokensHaveSourceFunctionCall <- function(tokens) {
   return(nrow(getSymbolFunctionCallsWithText('source', tokens)) == 1)
-}
-
-doesTokensHaveReadCsvFunctionCall <- function(tokens) {
-  return(nrow(getSymbolFunctionCallsWithText('read.csv', tokens)) == 1)
 }
 
 doesTokensHaveFunctionDefinition <- function(tokens) {

@@ -416,14 +416,6 @@ define_function.get_row_args <- function(func_body_exprs, function_args, tokens)
   return(row_args)
 }
 
-define_function.is_return_expr <- function(expr, tokens) {
-  return(nrow(getSymbolFunctionCallsWithText('return', getDescendantsOfToken(expr, tokens))) == 1)
-}
-
-define_function.get_return_arg_expr <- function(return_expr, tokens) {
-  return(getExprTokens(getChildTokensForParent(return_expr, tokens))[2, ])
-}
-
 define_function.is <- function(expr, tokens) {
   return(getChildTokensForParent(expr, tokens)[1, "token"] == FUNCTION_TOKEN)
 }
