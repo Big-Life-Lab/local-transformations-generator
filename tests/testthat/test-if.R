@@ -58,8 +58,6 @@ test_that("If expressions outside functions are correctly generated", {
   expect_equal(actual_pmml, expected_pmml)
 })
 
-context("Testing if expressions")
-
 test_that("If expressions inside functions that are not the last expression are correctly generated", {
   expected_pmml <- gsub("[\r\n]", "", '
 <PMML>
