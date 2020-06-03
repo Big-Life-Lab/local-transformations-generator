@@ -28,8 +28,6 @@ test_that("NA outside functions are correctly generated", {
   expect_equal(actual_pmml, expected_pmml)
 })
 
-context("Testing converting NULL and NA")
-
 test_that("NULL inside functions are correctly generated", {
   expected_pmml <- gsub("[\r\n]", "", '
 <PMML>
