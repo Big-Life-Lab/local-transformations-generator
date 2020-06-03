@@ -1,6 +1,3 @@
-source('R/token_to_pmml.R')
-source(file.path(getwd(), 'R/pmml-custom-func.R'))
-
 util.get_var_and_func_names <- function(tokens) {
   leftAssignTokens <- tokens[which(tokens$token == LEFT_ASSIGN_TOKEN), ]
   

@@ -1,5 +1,3 @@
-source("R/function-call.R")
-
 expr.generic_get_pmml_str_for_expr <- function(
   get_pmml_str_for_row_access,
   get_pmml_str_for_func_call_row_access,

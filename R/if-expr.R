@@ -1,6 +1,3 @@
-source('R/tokens.R')
-source('R/util.R')
-
 if_expr.is <- function(expr, tokens) {
   child_tokens <- getChildTokensForParent(expr, tokens)
   

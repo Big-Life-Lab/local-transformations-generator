@@ -1,5 +1,3 @@
-source(file.path(getwd(), 'R', './tokens.R'))
-
 isBooleanDataType <- function(token) {
   return((token$text == 'TRUE' | token$text == 'FALSE') & token$token == NUM_CONST_TOKEN)
 }

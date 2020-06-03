@@ -1,10 +1,3 @@
-source("R/strings.R")
-source(file.path(getwd(), 'R', './tokens/expr-token.R'))
-source("R/tokens/symbol-function-call-token.R")
-source("R/tokens/token.R")
-source("R/pmml.R")
-source("R/expr.R")
-
 define_function.get_pmml_string <- function(tokens, functionName) {
   functionTokens <- getFunctionTokens(tokens)
   if(nrow(functionTokens) > 1) {
