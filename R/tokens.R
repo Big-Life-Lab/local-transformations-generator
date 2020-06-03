@@ -78,7 +78,7 @@ getSpecialTokens <- function(tokens) {
 
 #Returns the token which is the parent of the child token argument
 getParentToken <- function(childNode, nodes) {
-  return(nodes[which(nodes$id == childNode$parent), ][1, ])
+  return(nodes[nodes$id %in% childNode$parent, ][1, ])
 }
 
 #Checks if the node arg is a descendant of the node with id provided in the id arg from the nodes arg

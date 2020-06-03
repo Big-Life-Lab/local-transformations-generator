@@ -49,7 +49,7 @@ getTokenWithAssignmentCode <- function(tokens) {
   leftAssignToken <- tokens[which(tokens$token == LEFT_ASSIGN_TOKEN), ][1, ]
   
   if(is.na(leftAssignToken$id)) {
-    return(NA)
+    return(tokens.create_empty_tokens_df())
   }
 
   return(getTokenAfterTokenWithId(tokens, leftAssignToken$id))

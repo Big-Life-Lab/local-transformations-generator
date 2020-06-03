@@ -1,6 +1,7 @@
 source("R/strings.R")
 source(file.path(getwd(), 'R', './tokens/expr-token.R'))
 source("R/tokens/symbol-function-call-token.R")
+source("R/tokens/token.R")
 source("R/pmml.R")
 source("R/expr.R")
 
@@ -147,7 +148,7 @@ define_function.get_pmml_string <- function(tokens, functionName) {
 test_unsupported_exprs <- function(top_level_expr, tokens) {
   assign_expr_token <- getTokenWithAssignmentCode(getDescendantsOfToken(top_level_expr, tokens))
   
-  if(is.na(assign_expr_token) == FALSE) {
+  if(token.is_na(assign_expr_token) == FALSE) {
     if(data_frame.is_col_access(assign_expr_token, tokens) | data_frame.is_expr(assign_expr_token, tokens)) {
       stop(strings.unsupported_df_col_access_expr_error)  
     }
