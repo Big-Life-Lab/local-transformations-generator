@@ -42,7 +42,6 @@ getPmmlStringForIfExpr <- function(expr, tokens, comment_tokens, evaluated_varia
       tokens, 
       comment_tokens,
       evaluated_variables,
-      FALSE
     )
   }
   
