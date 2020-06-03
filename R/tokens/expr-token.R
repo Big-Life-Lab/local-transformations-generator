@@ -1,5 +1,3 @@
-print("Sourced expr-token")
-
 expr_token.is_assignment_expr <- function(expr, tokens) {
   child_tokens <- getChildTokensForParent(expr, tokens)
   
