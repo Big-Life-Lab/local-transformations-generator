@@ -1,4 +1,4 @@
 Name: PMML Local Transformations
 Description: Makes PMML local transformations for the current R file
-Binding: pmmlAddin
+Binding: pmml_addin
 Interactive: false

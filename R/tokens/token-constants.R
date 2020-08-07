@@ -1,1 +1,0 @@
-token_constants.return_symbol_function_call_text <- 'return'

@@ -8,8 +8,8 @@ test_that("NULL outside functions are correctly generated", {
 </DerivedField>
 </LocalTransformations>
 </PMML>'
-  
-  test_utils.test_code_file("test-null-and-na/code/test-null-code-1.R", expected_pmml)
+
+  test_utils_test_code_file("test-null-and-na/code/test-null-code-1.R", expected_pmml)
 })
 
 test_that("NA outside functions are correctly generated", {
@@ -20,8 +20,8 @@ test_that("NA outside functions are correctly generated", {
 </DerivedField>
 </LocalTransformations>
 </PMML>'
-  
-  test_utils.test_code_file("test-null-and-na/code/test-na-code-1.R", expected_pmml)
+
+  test_utils_test_code_file("test-null-and-na/code/test-na-code-1.R", expected_pmml)
 })
 
 test_that("NULL inside functions are correctly generated", {
@@ -32,8 +32,8 @@ test_that("NULL inside functions are correctly generated", {
 </DefineFunction>
 </LocalTransformations>
 </PMML>'
-  
-  test_utils.test_code_file("test-null-and-na/code/test-null-code-2.R", expected_pmml)
+
+  test_utils_test_code_file("test-null-and-na/code/test-null-code-2.R", expected_pmml)
 })
 
 test_that("NA outside functions are correctly generated", {
@@ -44,6 +44,6 @@ test_that("NA outside functions are correctly generated", {
 </DefineFunction>
 </LocalTransformations>
 </PMML>'
-  
-  test_utils.test_code_file("test-null-and-na/code/test-na-code-2.R", expected_pmml)
+
+  test_utils_test_code_file("test-null-and-na/code/test-na-code-2.R", expected_pmml)
 })

@@ -14,8 +14,8 @@ test_that("Colon operator outside functions are correctly generated", {
 </DerivedField>
 </LocalTransformations>
 </PMML>'
-  
-  test_utils.test_code_file("test-colon-operator/code/test-colon-operator-code-1.R", expected_pmml)
+
+  test_utils_test_code_file("test-colon-operator/code/test-colon-operator-code-1.R", expected_pmml)
 })
 
 test_that("Colon operator inside functions are correctly generated", {
@@ -33,6 +33,6 @@ test_that("Colon operator inside functions are correctly generated", {
 </DefineFunction>
 </LocalTransformations>
 </PMML>'
-  
-  test_utils.test_code_file("test-colon-operator/code/test-colon-operator-code-2.R", expected_pmml)
+
+  test_utils_test_code_file("test-colon-operator/code/test-colon-operator-code-2.R", expected_pmml)
 })

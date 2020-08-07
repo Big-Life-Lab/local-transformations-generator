@@ -18,6 +18,6 @@ test_that("Data frames from read.csv are correctly generated", {
 </Taxonomy>
 <LocalTransformations>
 </LocalTransformations></PMML>'
-  
-  test_utils.test_code_file("test-table/code/test-table-code-1.R", expected_pmml)
+
+  test_utils_test_code_file("test-table/code/test-table-code-1.R", expected_pmml)
 })

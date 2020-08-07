@@ -10,6 +10,6 @@ test_that("PMML is correctly generated", {
 <Constant dataType="double">1</Constant>
 </DerivedField>
 </LocalTransformations></PMML>'
-  
-  test_utils.test_code_file("test-source/code/test-source-code-1.R", expected_pmml)
+
+  test_utils_test_code_file("test-source/code/test-source-code-1.R", expected_pmml)
 })

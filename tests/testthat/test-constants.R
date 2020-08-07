@@ -8,8 +8,8 @@ test_that("Constant expressions outside functions are correctly generated", {
 </DerivedField>
 </LocalTransformations>
 </PMML>'
-  
-  test_utils.test_code_file("test-constants/code/test-constants-code-1.R", expected_pmml)
+
+  test_utils_test_code_file("test-constants/code/test-constants-code-1.R", expected_pmml)
 })
 
 test_that("Constant expressions inside functions are correctly generated", {
@@ -20,6 +20,6 @@ test_that("Constant expressions inside functions are correctly generated", {
 </DefineFunction>
 </LocalTransformations>
 </PMML>'
-  
-  test_utils.test_code_file("test-constants/code/test-constants-code-2.R", expected_pmml)
+
+  test_utils_test_code_file("test-constants/code/test-constants-code-2.R", expected_pmml)
 })

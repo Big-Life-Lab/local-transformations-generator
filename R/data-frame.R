@@ -1,9 +1,9 @@
 # Check whether this expr is for accessing the row in a data frame for eg.,
 # table[col1 == "val1", ]
 # tabke["val1", "col2"]
-data_frame.is_expr <- function(expr, tokens) {
-  child_tokens <- getChildTokensForParent(expr, tokens)
-  
+data_frame_is_expr <- function(expr, tokens) {
+  child_tokens <- get_child_tokens_for_parent(expr, tokens)
+
   if(nrow(child_tokens) == 0) {
     return(FALSE)
   }
@@ -15,74 +15,74 @@ data_frame.is_expr <- function(expr, tokens) {
 }
 
 # Check whether this data rame expr has a wild card access in it
-data_frame.is_wildcard_expr <- function(expr, tokens) {
-  child_tokens <- getChildTokensForParent(expr, tokens)
-  expr_child_tokens <- getExprTokens(child_tokens)
-  
+data_frame_is_wildcard_expr <- function(expr, tokens) {
+  child_tokens <- get_child_tokens_for_parent(expr, tokens)
+  expr_child_tokens <- get_expr_tokens(child_tokens)
+
   return(nrow(expr_child_tokens) != 3)
 }
 
 # Check whether this expression is of the type table[table$row == var1, ]$col
-data_frame.is_col_access <- function(expr, tokens) {
-  if(dollar_op.is_expr(expr, tokens) == FALSE) {
+data_frame_is_col_access <- function(expr, tokens) {
+  if(dollar_op_is_expr(expr, tokens) == FALSE) {
     return(FALSE)
   }
-  
-  child_expr_tokens <- getExprTokens(
-    getChildTokensForParent(expr, tokens))
-  
-  return(data_frame.is_expr(child_expr_tokens[1, ], tokens))
+
+  child_expr_tokens <- get_expr_tokens(
+    get_child_tokens_for_parent(expr, tokens))
+
+  return(data_frame_is_expr(child_expr_tokens[1, ], tokens))
 }
 
 # Check whether this expression is of the type table[table$row == var1, ]
-data_frame.is_row_access <- function(expr, tokens) {
-  return(dollar_op.is_expr(expr, tokens) == TRUE & data_frame.is_col_access(expr, tokens) == FALSE)
+data_frame_is_row_access <- function(expr, tokens) {
+  return(dollar_op_is_expr(expr, tokens) == TRUE & data_frame_is_col_access(expr, tokens) == FALSE)
 }
 
-data_frame.get_pmml_node <- function(expr, tokens) {
-  child_tokens <- getChildTokensForParent(expr, tokens)
-  expr_child_tokens <- getExprTokens(child_tokens)
-  
-  if(data_frame.is_wildcard_expr(expr, tokens) == FALSE) {
-    outputColumnName <- formatSymbolName(getChildTokensForParent(child_tokens[5, ], tokens)[1, ])
-    indexColumnValue <- formatSymbolName(getChildTokensForParent(child_tokens[3, ], tokens)[1, ])
-    tableName <- formatSymbolName(getChildTokensForParent(child_tokens[1, ], tokens)[1, ])
-    fieldColumnPairString <- glue::glue('<FieldColumnPair column="index" constant="{indexColumnValue}"/>')
-    
-    return(glue::glue('<MapValues outputColumn="{outputColumnName}">{fieldColumnPairString}<TableLocator location="taxonomy" name="{tableName}"/></MapValues>'))
+data_frame_get_pmml_node <- function(expr, tokens) {
+  child_tokens <- get_child_tokens_for_parent(expr, tokens)
+  expr_child_tokens <- get_expr_tokens(child_tokens)
+
+  if(data_frame_is_wildcard_expr(expr, tokens) == FALSE) {
+    output_column_name <- format_symbol_name(get_child_tokens_for_parent(child_tokens[5, ], tokens)[1, ])
+    index_column_value <- format_symbol_name(get_child_tokens_for_parent(child_tokens[3, ], tokens)[1, ])
+    table_name <- format_symbol_name(get_child_tokens_for_parent(child_tokens[1, ], tokens)[1, ])
+    field_column_pair_string <- glue::glue('<FieldColumnPair column="index" constant="{index_column_value}"/>')
+
+    return(glue::glue('<MapValues outputColumn="{output_column_name}">{field_column_pair_string}<TableLocator location="taxonomy" name="{table_name}"/></MapValues>'))
   } else {
     # The first token in the above child tokens is an expressions which has the name of the table we want to search
-    exprTokenWithTableName <- expr_child_tokens[1, ]
+    expr_token_with_table_name <- expr_child_tokens[1, ]
     # Get the name of the table
-    tableName <- getChildTokensForParent(exprTokenWithTableName, tokens)[1, ]$text
+    table_name <- get_child_tokens_for_parent(expr_token_with_table_name, tokens)[1, ]$text
 
     # Get the expr token which has the table search conditions like tableName$col == 'a' along with the AND between the conditions
-    exprTokenWithTableEntireSearchConditions <- expr_child_tokens[2, ]
+    expr_token_with_table_entire_search_conditions <- expr_child_tokens[2, ]
 
     # Get the descendants of the expr token with table entires. It will have the information we need for the FieldColumnPairs
-    tokensToUseForFieldColumnPairStrings <- getDescendantsOfToken(exprTokenWithTableEntireSearchConditions, tokens)
+    tokens_to_use_for_field_column_pair_strings <- get_descendants_of_token(expr_token_with_table_entire_search_conditions, tokens)
 
     # The string which at the end of the following loop will have all the FieldColumnPairs
-    fieldColumnPairs <- ''
-    
+    field_column_pairs <- ''
+
     # Go though the descendants
-    for(i in 1:nrow(tokensToUseForFieldColumnPairStrings)) {
+    for(i in 1:nrow(tokens_to_use_for_field_column_pair_strings)) {
       # If the token is op type $
-      if(tokensToUseForFieldColumnPairStrings[i, 'token'] == "'$'") {
+      if(tokens_to_use_for_field_column_pair_strings[i, 'token'] == "'$'") {
         # The token  after this is the column referenced in the table
-        column <- tokensToUseForFieldColumnPairStrings[i+1, ]
+        column <- tokens_to_use_for_field_column_pair_strings[i+1, ]
         # The token 2 after this is the field or constant we need to compare the column to
-        fieldOrConstant <- tokensToUseForFieldColumnPairStrings[i+3, ]
-        
+        field_or_constant <- tokens_to_use_for_field_column_pair_strings[i+3, ]
+
         # Make the column pmml string
-        columnString <- glue::glue('column="{column$text}"')
+        column_string <- glue::glue('column="{column$text}"')
         # Make the field or constant pmml string
-        fieldOrConstantString <- ifelse(isSymbolToken(fieldOrConstant), glue::glue('field="{fieldOrConstant$text}"'), glue::glue('constant="{formatConstantTokenText(fieldOrConstant)}"'))
+        field_or_constant_string <- ifelse(is_symbol_token(field_or_constant), glue::glue('field="{field_or_constant$text}"'), glue::glue('constant="{format_constant_token_text(field_or_constant)}"'))
         # Make the FieldColumnPair string and append it to the master list
-        fieldColumnPairs <- paste(fieldColumnPairs, glue::glue('<FieldColumnPair {columnString} {fieldOrConstantString}/>'), sep = "")
+        field_column_pairs <- paste(field_column_pairs, glue::glue('<FieldColumnPair {column_string} {field_or_constant_string}/>'), sep = "")
       }
     }
-    
-    return(paste(fieldColumnPairs, glue::glue('<TableLocator location="taxonomy" name="{tableName}"/>'), sep = ''))
+
+    return(paste(field_column_pairs, glue::glue('<TableLocator location="taxonomy" name="{table_name}"/>'), sep = ''))
   }
 }

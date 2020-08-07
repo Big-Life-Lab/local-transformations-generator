@@ -15,6 +15,6 @@ test_that("Mutations outside functions are correctly generated", {
 <DerivedField name="SMKDSTY" optype="continuous">
 <FieldRef field="ALWDWKY_Mutated_2"/>
 </DerivedField></LocalTransformations></PMML>'
-  
-  test_utils.test_code_file("test-mutation/code/test-mutation-code-1.R", expected_pmml)
+
+  test_utils_test_code_file("test-mutation/code/test-mutation-code-1.R", expected_pmml)
 })

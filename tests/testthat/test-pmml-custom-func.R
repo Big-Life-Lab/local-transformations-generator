@@ -17,6 +17,6 @@ test_that("z-score functions outside functions are correctly generated", {
 </Apply>
 </DerivedField>
 </LocalTransformations></PMML>'
-  
-  test_utils.test_code_file("test-pmml-custom-func/code/test-pmml-custom-func-code-1.R", expected_pmml)
+
+  test_utils_test_code_file("test-pmml-custom-func/code/test-pmml-custom-func-code-1.R", expected_pmml)
 })

@@ -9,8 +9,8 @@ test_that("Exists function is correctly converted", {
 </Apply></DerivedField>
 </LocalTransformations>
 </PMML>'
-  
-  test_utils.test_code_file("test-pmml-functions/code/test-exists-code.R", expected_pmml)
+
+  test_utils_test_code_file("test-pmml-functions/code/test-exists-code.R", expected_pmml)
 })
 
 test_that("c function is correctly converted", {
@@ -25,6 +25,6 @@ test_that("c function is correctly converted", {
 </Apply></DerivedField>
 </LocalTransformations>
 </PMML>'
-  
-  test_utils.test_code_file("test-pmml-functions/code/test-c-code.R", expected_pmml)
+
+  test_utils_test_code_file("test-pmml-functions/code/test-c-code.R", expected_pmml)
 })

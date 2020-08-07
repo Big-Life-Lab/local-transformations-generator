@@ -1,26 +1,9 @@
-source("R/data-frame.R")
-source("R/define-function.R")
-source("R/derived-field.R")
-source("R/dollar-operator.R")
-source("R/expr.R")
-source("R/function-call.R")
-source("R/globals/globals.R")
-source("R/if-expr.R")
-source("R/pmml-custom-func.R")
-source("R/pmml.R")
-source("R/strings.R")
-source("R/test-utils.R")
-source("R/token_to_pmml.R")
-source("R/tokens/tokens.R")
-source("R/tokens.R")
-source("R/util.R")
+is_symbol_function_call_expr <- function(expr_token, tokens) {
+  expr_tokens_whose_parent_is_the_current_token <- get_expr_tokens(get_tokens_with_parent(expr_token$id, tokens))
 
-isSymbolFunctionCallExpr <- function(exprToken, tokens) {
-  exprTokensWhoseParentIsTheCurrentToken <- getExprTokens(getTokensWithParent(exprToken$id, tokens))
-  
-  if(nrow(exprTokensWhoseParentIsTheCurrentToken) !=  0) {
-    for(i in 1:nrow(exprTokensWhoseParentIsTheCurrentToken)) {
-      if(getTokensWithParent(exprTokensWhoseParentIsTheCurrentToken[1, 'id'], tokens)[1, 'token'] == SYMBOL_FUNCTION_CALL_TOKEN) {
+  if(nrow(expr_tokens_whose_parent_is_the_current_token) !=  0) {
+    for(i in 1:nrow(expr_tokens_whose_parent_is_the_current_token)) {
+      if(get_tokens_with_parent(expr_tokens_whose_parent_is_the_current_token[1, 'id'], tokens)[1, 'token'] == SYMBOL_FUNCTION_CALL_TOKEN) {
         return(TRUE)
       }
     }
@@ -29,332 +12,332 @@ isSymbolFunctionCallExpr <- function(exprToken, tokens) {
   return(FALSE);
 }
 
-getRArgumentsIntoFunctionString <- function(originalFunctionArgTokens) {
+get_r_arguments_into_function_string <- function(original_function_arg_tokens) {
   # When no arguments return an empty string
-  if(nrow(originalFunctionArgTokens) == 0) {
+  if(nrow(original_function_arg_tokens) == 0) {
     return('')
   }
 
   #The r string for the arguments into the function
-  rArgumentsIntoFunctionString <- ''
-  for(i in 1:nrow(originalFunctionArgTokens)) {
-    rArgumentsIntoFunctionString <- paste(rArgumentsIntoFunctionString, originalFunctionArgTokens[i, 'text'], sep=',')
+  r_arguments_into_function_string <- ''
+  for(i in 1:nrow(original_function_arg_tokens)) {
+    r_arguments_into_function_string <- paste(r_arguments_into_function_string, original_function_arg_tokens[i, 'text'], sep=',')
   }
 
-  return(rArgumentsIntoFunctionString)
+  return(r_arguments_into_function_string)
 }
 
-getDefineFunctionForDefaultArgExpr <- function(argSymbolFormal, allArgSymbolFormals, tokens, func_name, function_param_tokens) {
-  possibleEqFormalsToken <- getTokenWithId(argSymbolFormal$id+1, tokens)
-  doesArgHaveDefaultValue <- possibleEqFormalsToken$token == EQ_FORMALS
+get_define_function_for_default_arg_expr <- function(arg_symbol_formal, all_arg_symbol_formals, tokens, func_name, function_param_tokens) {
+  possible_eq_formals_token <- get_token_with_id(arg_symbol_formal$id+1, tokens)
+  does_arg_have_default_value <- possible_eq_formals_token$token == EQ_FORMALS
 
-  if(!doesArgHaveDefaultValue) {
+  if(!does_arg_have_default_value) {
     return('')
   } else {
-    eqFormalsToken <- possibleEqFormalsToken
+    eq_formals_token <- possible_eq_formals_token
 
-    tokenAfterEqFormalsToken <- getTokenAfterTokenWithId(tokens, eqFormalsToken$id)
+    token_after_eq_formals_token <- get_token_after_token_with_id(tokens, eq_formals_token$id)
 
-    argName <- argSymbolFormal$text
+    arg_name <- arg_symbol_formal$text
 
-    defaultValue <- NA
-    if(tokenAfterEqFormalsToken$token == EXPR_TOKEN) {
-      defaultValue <- define_function.get_pmml_str_for_expr(tokenAfterEqFormalsToken, tokens, func_name, function_param_tokens, FALSE)
+    default_value <- NA
+    if(token_after_eq_formals_token$token == EXPR_TOKEN) {
+      default_value <- define_function_get_pmml_str_for_expr(token_after_eq_formals_token, tokens, func_name, function_param_tokens, FALSE)
     } else {
-      defaultValue <- getPmmlStringForConstant(tokenAfterEqFormalsToken)
+      default_value <- get_pmml_string_for_constant(token_after_eq_formals_token)
     }
 
-    return(glue::glue(getPmmlStringForDefineFunction(glue::glue('default({argName})'), allArgSymbolFormals, glue::glue('<Apply function="if"><Apply function="equal"><FieldRef field="{argName}"/><Constant dataType="NA">NA</Constant></Apply>{defaultValue}<FieldRef field="{argName}"/></Apply>'))))
+    return(glue::glue(get_pmml_string_for_define_function(glue::glue('default({arg_name})'), all_arg_symbol_formals, glue::glue('<Apply function="if"><Apply function="equal"><FieldRef field="{arg_name}"/><Constant dataType="NA">NA</Constant></Apply>{default_value}<FieldRef field="{arg_name}"/></Apply>'))))
   }
 }
 
 
-# Returns the pmmlString arg where every reference to an argument that has been defaulted is replaced with a function call that returns the formatted value
-getPmmlStringWithDefaultedArgsCorrectlySet <- function(defaultedArgTokens, allArgTokens, pmmlString) {
-  formattedPmmlString <- pmmlString
+# Returns the pmml_string arg where every reference to an argument that has been defaulted is replaced with a function call that returns the formatted value
+get_pmml_string_with_defaulted_args_correctly_set <- function(defaulted_arg_tokens, all_arg_tokens, pmml_string) {
+  formatted_pmml_string <- pmml_string
 
-  if(nrow(defaultedArgTokens) != 0) {
-    for(i in 1:nrow(defaultedArgTokens)) {
-      defaultFunctionArgsPmmlString <- ''
-      for(j in 1:nrow(allArgTokens)) {
+  if(nrow(defaulted_arg_tokens) != 0) {
+    for(i in 1:nrow(defaulted_arg_tokens)) {
+      default_function_args_pmml_string <- ''
+      for(j in 1:nrow(all_arg_tokens)) {
         # Added placeholder to the beginning to prevent subsequent replacement calls from replacing the earlier replacement. THis will be put back to the right string later
-        defaultFunctionArgsPmmlString <- glue::glue(defaultFunctionArgsPmmlString, '<FieldRef field="placeholder_{allArgTokens[j, "text"]}"/>')
+        default_function_args_pmml_string <- glue::glue(default_function_args_pmml_string, '<FieldRef field="placeholder_{all_arg_tokens[j, "text"]}"/>')
       }
 
-      formattedPmmlString <- gsub(glue::glue('<FieldRef field="{defaultedArgTokens[i, "text"]}"/>'), glue::glue('<Apply function="default({defaultedArgTokens[i, "text"]})">{defaultFunctionArgsPmmlString}</Apply>'), formattedPmmlString)
+      formatted_pmml_string <- gsub(glue::glue('<FieldRef field="{defaulted_arg_tokens[i, "text"]}"/>'), glue::glue('<Apply function="default({defaulted_arg_tokens[i, "text"]})">{default_function_args_pmml_string}</Apply>'), formatted_pmml_string)
     }
 
-    for(i in 1:nrow(allArgTokens)) {
-      formattedPmmlString <- gsub(glue::glue('<FieldRef field="placeholder_{allArgTokens[i, "text"]}"/>'), glue::glue('<FieldRef field="{allArgTokens[i, "text"]}"/>'), formattedPmmlString)
+    for(i in 1:nrow(all_arg_tokens)) {
+      formatted_pmml_string <- gsub(glue::glue('<FieldRef field="placeholder_{all_arg_tokens[i, "text"]}"/>'), glue::glue('<FieldRef field="{all_arg_tokens[i, "text"]}"/>'), formatted_pmml_string)
     }
   }
 
-  return(formattedPmmlString)
+  return(formatted_pmml_string)
 }
 
-# Get the index of the not the first but the second row in the parseData array which has the parent field set to 0
-getIndexOfNextZeroParent <- function(parseData) {
-  numZeroParents <- 0
+# Get the index of the not the first but the second row in the parse_data array which has the parent field set to 0
+get_index_of_next_zero_parent <- function(parse_data) {
+  num_zero_parents <- 0
 
-  for(i in 1:nrow(parseData)) {
-    if(parseData[i,'parent'] == 0) {
-      if(numZeroParents == 1) {
+  for(i in 1:nrow(parse_data)) {
+    if(parse_data[i,'parent'] == 0) {
+      if(num_zero_parents == 1) {
         return(i)
       }
       else {
-        numZeroParents <- numZeroParents + 1
+        num_zero_parents <- num_zero_parents + 1
       }
     }
   }
 
-  return(nrow(parseData))
+  return(nrow(parse_data))
 }
 
-getPmmlStringFromSouceFunctionCallTokens <- function(sourceFunctionCallTokens, mutatedVariables, evaluated_variables) {
-  sourceFunctionCallArgExprToken <- getTokensWithParent(sourceFunctionCallTokens[1, ]$id, sourceFunctionCallTokens)[3, ]
-  sourceFunctionCallArgCodeString <- getParseText(sourceFunctionCallTokens, sourceFunctionCallArgExprToken$id)
-  sourceFilePath <- eval(parse(text=sourceFunctionCallArgCodeString))
-  
-  return(getPmmlStringFromRFile(sourceFilePath, FALSE, mutatedVariables, evaluated_variables))
+get_pmml_string_from_source_function_call_tokens <- function(source_function_call_tokens, mutated_variables, evaluated_variables) {
+  source_function_call_arg_expr_token <- get_tokens_with_parent(source_function_call_tokens[1, ]$id, source_function_call_tokens)[3, ]
+  source_function_call_arg_code_string <- getParseText(source_function_call_tokens, source_function_call_arg_expr_token$id)
+  source_file_Path <- eval(parse(text=source_function_call_arg_code_string))
+
+  return(get_pmml_string_from_r_file(source_file_Path, FALSE, mutated_variables, evaluated_variables))
 }
 
-# Generates the PMML table string for the data frame in the dataFrame argument whose name is the tableName argument
-getTablePmmlStringsForDataFrame <- function(dataFrame, tableName) {
+# Generates the PMML table string for the data frame in the data_frame argument whose name is the table_name argument
+get_table_pmml_strings_for_data_frame <- function(data_frame, table_name) {
   # This is where we will store the entire InlineTable xml element
-  pmmlTableString <- ''
+  pmml_table_string <- ''
 
-  rownames <- rownames(dataFrame)
+  row_names <- rownames(data_frame)
 
   # Go through all the rows of the table
-  for(i in 1:nrow(dataFrame)) {
+  for(i in 1:nrow(data_frame)) {
     # For each row add a <row> opening tag
-    pmmlTableString <- glue::glue('{pmmlTableString}<row><index>{rownames[[i]]}</index>')
+    pmml_table_string <- glue::glue('{pmml_table_string}<row><index>{row_names[[i]]}</index>')
 
     # Go through the columns of the row
-    for(j in 1:ncol(dataFrame)) {
+    for(j in 1:ncol(data_frame)) {
       # For each column add <colname>Value of the column in this row</colname>
-      pmmlTableString <- glue::glue('{pmmlTableString}<{colnames(dataFrame)[j]}>{dataFrame[i,j]}</{colnames(dataFrame)[j]}>')
+      pmml_table_string <- glue::glue('{pmml_table_string}<{colnames(data_frame)[j]}>{data_frame[i,j]}</{colnames(data_frame)[j]}>')
     }
 
     # End of this row so add a closing row xml tag
-    pmmlTableString <- glue::glue("{pmmlTableString}</row>")
+    pmml_table_string <- glue::glue("{pmml_table_string}</row>")
   }
 
   # The final table string
-  pmmlTableString <- glue::glue('<Taxonomy name="{tableName}"><InlineTable>{pmmlTableString}</InlineTable></Taxonomy>')
+  pmml_table_string <- glue::glue('<Taxonomy name="{table_name}"><InlineTable>{pmml_table_string}</InlineTable></Taxonomy>')
 
   # Return the string along with the variable to which the table data was assigned
-  return(list(pmmlTableString, table))
+  return(list(pmml_table_string, table))
 }
 
-getMutatedVariableName <- function(variableName, mutationNumber) {
-  if(mutationNumber <= 0) {
-    return(variableName)
+get_mutated_variable_name <- function(variable_name, mutation_number) {
+  if(mutation_number <= 0) {
+    return(variable_name)
   } else {
-    return(glue::glue('{variableName}_Mutated_{mutationNumber}'))
+    return(glue::glue('{variable_name}_Mutated_{mutation_number}'))
   }
 }
 
-mutateVariable <- function(mutatedVariables, variableName) {
+mutate_variable <- function(mutated_variables, variable_name) {
   # Get the list of all the variables we are currently tracking for mutation
-  currentVariables <- row.names(mutatedVariables)
-  
-  # Find the one that matches with the variableName variable and increase the mutation count by one
-  for(i in currentVariables) {
-    if(i == variableName) {
-      mutatedVariables[i, 'mutationIteration'] <- mutatedVariables[i, 'mutationIteration'] + 1
+  current_variables <- row.names(mutated_variables)
+
+  # Find the one that matches with the variable_name variable and increase the mutation count by one
+  for(i in current_variables) {
+    if(i == variable_name) {
+      mutated_variables[i, 'mutationIteration'] <- mutated_variables[i, 'mutationIteration'] + 1
     }
   }
-  
-  return(mutatedVariables)
+
+  return(mutated_variables)
 }
 
-# Goes through the mutation logic for the list tokens in the tokens arg for the variable with name variableName
-mutateRelevantVariables <- function(variableName, tokens, mutatedVariables) {
+# Goes through the mutation logic for the list tokens in the tokens arg for the variable with name variable_name
+mutate_relevant_variables <- function(variable_name, tokens, mutated_variables) {
   # Get the expr token which encapsulates the left hand side of an assignment statement
-  exprTokenForRightAssign <- getChildTokensForParent(tokens[1, ], tokens)[3, ]
+  expr_token_for_right_assign <- get_child_tokens_for_parent(tokens[1, ], tokens)[3, ]
   # Get the expr token which encapsulates the right hand side of an assignment statement
-  exprTokenForLeftAssign <- getChildTokensForParent(tokens[1, ], tokens)[1, ]
-  
+  expr_token_for_left_assign <- get_child_tokens_for_parent(tokens[1, ], tokens)[1, ]
+
   # First go through all the tokens which are in the RHS and update all the relevant
   # variables to their mutated variable names
   for(i in 1:nrow(tokens)) {
     # For example if testOne is variable has been mutated twice then we set it to testOne_Mutated_2
-    if(isDescendantOfTokenWithId(exprTokenForRightAssign$id, tokens[i, ], tokens)) {
-      if(isSymbolToken(tokens[i, ]) & tokens[i, 'text'] %in% row.names(mutatedVariables)) {
-        tokens[i, 'text'] <- getMutatedVariableName(tokens[i, 'text'], mutatedVariables[tokens[i, 'text'], 'mutationIteration'])
+    if(is_descendant_of_token_with_id(expr_token_for_right_assign$id, tokens[i, ], tokens)) {
+      if(is_symbol_token(tokens[i, ]) & tokens[i, 'text'] %in% row.names(mutated_variables)) {
+        tokens[i, 'text'] <- get_mutated_variable_name(tokens[i, 'text'], mutated_variables[tokens[i, 'text'], 'mutationIteration'])
       }
     }
   }
-  
-  
-  # Check if there is an entry in the mutatedVariables data frame for the current variable. if there isn't, then create one and set the number of times it's been mutated to 0
-  if(variableName %in% row.names(mutatedVariables) == FALSE) {
-    mutatedVariables[variableName, 'mutationIteration'] <- 0
+
+
+  # Check if there is an entry in the mutated_variables data frame for the current variable. if there isn't, then create one and set the number of times it's been mutated to 0
+  if(variable_name %in% row.names(mutated_variables) == FALSE) {
+    mutated_variables[variable_name, 'mutationIteration'] <- 0
   } else { # If there is an entry then update it's it's mutation count
-    mutatedVariables <- mutateVariable(mutatedVariables, variableName)
+    mutated_variables <- mutate_variable(mutated_variables, variable_name)
   }
 
-  # Next. If the variable on the left is being set using itself then it implies 
+  # Next. If the variable on the left is being set using itself then it implies
   # it's being mutated, so update the mutationIteration for the variable
   # if it happens. For eg, a <- a would be a statement that mutates itself
   # Do this by checking if any of symbols on the RHS has the same name has the
-  # variableName arg. Remember that the tokens have been updated though so technically
+  # variable_name arg. Remember that the tokens have been updated though so technically
   # this should only work for the very first self mutation
-  for(tokenIndex in 1:nrow(tokens)) {
-    currentToken <- tokens[tokenIndex, ]
-    
-    if(isDescendantOfTokenWithId(exprTokenForRightAssign$id, currentToken, tokens)) {
-      if(isSymbolToken(currentToken) & currentToken$text == variableName) {
-        mutatedVariables <- mutateVariable(mutatedVariables, variableName)
-        
+  for(token_index in 1:nrow(tokens)) {
+    current_token <- tokens[token_index, ]
+
+    if(is_descendant_of_token_with_id(expr_token_for_right_assign$id, current_token, tokens)) {
+      if(is_symbol_token(current_token) & current_token$text == variable_name) {
+        mutated_variables <- mutate_variable(mutated_variables, variable_name)
+
         break
       }
-    }  
+    }
   }
-  
-  
+
+
   # For each token in the list of them check if it's a child of the LHS or RHS expr token
   for(i in 1:nrow(tokens)) {
     # Otherwise if it's part of the LHS it has to be the symbol for the current variable so set it's new name to number of times it's been mutated till now plus one
-    if(tokens[i, ]$parent == exprTokenForLeftAssign$id) {
-      tokens[i, 'text'] <- getMutatedVariableName(variableName, mutatedVariables[variableName, 'mutationIteration'])
+    if(tokens[i, ]$parent == expr_token_for_left_assign$id) {
+      tokens[i, 'text'] <- get_mutated_variable_name(variable_name, mutated_variables[variable_name, 'mutationIteration'])
     }
   }
 
   # Return the mutated tokens
-  return(list(tokens=tokens, mutatedVariables=mutatedVariables))
+  return(list(tokens=tokens, mutated_variables=mutated_variables))
 }
 
-# mutatedVariables - Keeps track of all the variables and the number of times they have been mutated. Each row is the name of the variable and every row has one column called mutation iteration which is the number of times this variable has been mutated. When function is called for the first time should not be passed in
+# mutated_variables - Keeps track of all the variables and the number of times they have been mutated. Each row is the name of the variable and every row has one column called mutation iteration which is the number of times this variable has been mutated. When function is called for the first time should not be passed in
 # evaluated_variables - A HashMap that maps the variable name from each line of code to it's evaluated value
-getPmmlStringFromRFile <- function(filePath, srcFile=FALSE, mutatedVariables = data.frame(), evaluated_variables = new.env(hash = TRUE)) {
-  if(srcFile) {
+get_pmml_string_from_r_file <- function(file_path, src_file=FALSE, mutated_variables = data.frame(), evaluated_variables = new.env(hash = TRUE)) {
+  if(src_file) {
     # Create directory where we store temperoray files during the addin operation
     dir.create(file.path(getwd(), 'temp'), showWarnings = FALSE)
     # Save the current workspace in the temp directory. Since we are going to be evaluating each line of code we don't want to overwrite a person's workspace objects as we execute the code
     save.image(file=file.path(getwd(), 'temp/temp.RData'))
-    
+
     assign("row_vars", data.frame(), envir = .GlobalEnv)
     assign("gl_row_functions", list(), envir = .GlobalEnv)
   }
 
-  tokensWithComments <- getParseData(parse(file = filePath, keep.source = TRUE))
-  tokens <- filterOutCommentTokens(tokensWithComments)
+  tokens_with_comments <- getParseData(parse(file = file_path, keep.source = TRUE))
+  tokens <- filter_out_comment_tokens(tokens_with_comments)
   ##### DEBUG
   #print(tokens)
 
-  nextZeroParentIndex <- getIndexOfNextZeroParent(tokens)
+  next_zero_parent_index <- get_index_of_next_zero_parent(tokens)
 
-  localTransformationString <- ''
+  local_transformation_string <- ''
   taxonomy <- ''
 
   # Each line of code is consists of several tokens but they all start with  an expr token whose parent is 0. This is how we know that we have reached a new line of code
-  while(nextZeroParentIndex != 0) {
-    tokensForCurrentParentIndex = tokens[1:nextZeroParentIndex, ]
+  while(next_zero_parent_index != 0) {
+    tokens_for_current_parent_index = tokens[1:next_zero_parent_index, ]
 
     # Get all the comments for this expression
-    comments_for_current_expr <- getCommentTokensWithParent(
-      tokensForCurrentParentIndex[1, ]$id,
-      tokensWithComments
+    comments_for_current_expr <- get_comment_tokens_with_parent(
+      tokens_for_current_parent_index[1, ]$id,
+      tokens_with_comments
     )
 
-    if(doesTokensHaveSourceFunctionCall(tokensForCurrentParentIndex) == TRUE) {
-      sourceReturnValues <- getPmmlStringFromSouceFunctionCallTokens(tokensForCurrentParentIndex, mutatedVariables, evaluated_variables)
+    if(does_tokens_have_source_function_call(tokens_for_current_parent_index) == TRUE) {
+      source_return_values <- get_pmml_string_from_source_function_call_tokens(tokens_for_current_parent_index, mutated_variables, evaluated_variables)
 
-      taxonomy <- paste(taxonomy, sourceReturnValues$taxonomy, sep='')
-      localTransformationString <- paste(localTransformationString, sourceReturnValues$localTransformationString, sep='')
-      mutatedVariables <- sourceReturnValues$mutatedVariables
+      taxonomy <- paste(taxonomy, source_return_values$taxonomy, sep='')
+      local_transformation_string <- paste(local_transformation_string, source_return_values$local_transformation_string, sep='')
+      mutated_variables <- source_return_values$mutated_variables
     } else {
-      derived_field_names <- unique(util.get_var_and_func_names(tokensForCurrentParentIndex))
-      
+      derived_field_names <- unique(util_get_var_and_func_names(tokens_for_current_parent_index))
+
       for(i in 1:length(derived_field_names)) {
-        mutateRelevantVariablesResult <- mutateRelevantVariables(derived_field_names[i], tokensForCurrentParentIndex, mutatedVariables)
-        tokensForCurrentParentIndex <- mutateRelevantVariablesResult$tokens
-        mutatedVariables <- mutateRelevantVariablesResult$mutatedVariables 
+        mutate_relevant_variables_result <- mutate_relevant_variables(derived_field_names[i], tokens_for_current_parent_index, mutated_variables)
+        tokens_for_current_parent_index <- mutate_relevant_variables_result$tokens
+        mutated_variables <- mutate_relevant_variables_result$mutated_variables
       }
 
-      # We are going to evaluate the code represented by the tokens in the variable tokensForCurrentParentIndex and depending on the value returned called the right pmml parsing function
-      evaluatedValue <- NA
+      # We are going to evaluate the code represented by the tokens in the variable tokens_for_current_parent_index and depending on the value returned called the right pmml parsing function
+      evaluated_value <- NA
       tryCatch({
         # Evaluate the line of code
-        evaluatedValue <- eval(parse(text=getParseText(tokensForCurrentParentIndex, tokensForCurrentParentIndex[1, 'id'])))
+        evaluated_value <- eval(parse(text=getParseText(tokens_for_current_parent_index, tokens_for_current_parent_index[1, 'id'])))
       }, error = function(e) {
         # If there's an error set it to NA
-        evaluatedValue <<- NA
+        evaluated_value <<- NA
       })
-      
+
       for(i in 1:length(derived_field_names)) {
-        variableName <- derived_field_names[i]
-        mutatedVariableName <- getMutatedVariableName(variableName, mutatedVariables[variableName, 'mutationIteration'])
-        print(glue::glue("Parsing variable {mutatedVariableName}"))
-        
-        if(mutatedVariables[variableName, 'mutationIteration'] != 0) {
+        variable_name <- derived_field_names[i]
+        mutated_variable_name <- get_mutated_variable_name(variable_name, mutated_variables[variable_name, 'mutationIteration'])
+        print(glue::glue("Parsing variable {mutated_variable_name}"))
+
+        if(mutated_variables[variable_name, 'mutationIteration'] != 0) {
           for(obj in ls()) {
-            if(obj == variableName) {
-              evaluatedValue = get(obj)
+            if(obj == variable_name) {
+              evaluated_value = get(obj)
             }
           }
         }
-        
+
         # Set the evaluated value to it's mutated variable value in the evaluated variables environment
-        evaluated_variables[[mutatedVariableName]] <- evaluatedValue
+        evaluated_variables[[mutated_variable_name]] <- evaluated_value
 
         # if the evaluated value is a data frame
-        if(class(evaluatedValue) == 'data.frame') {
+        if(class(evaluated_value) == 'data.frame') {
           # The return value is a list with the pmml string and the name of the variable to which the table was assigned
-          returnValues <- getTablePmmlStringsForDataFrame(evaluatedValue, mutatedVariableName)
-          
+          return_values <- get_table_pmml_strings_for_data_frame(evaluated_value, mutated_variable_name)
+
           # Add the pmml table string to the taxonomy string
-          taxonomy <- paste(taxonomy, returnValues[1], sep = '')
+          taxonomy <- paste(taxonomy, return_values[1], sep = '')
         }
-        else if(doesTokensHaveFunctionDefinition(tokensForCurrentParentIndex) == TRUE) {
-          localTransformationString <- paste(localTransformationString, define_function.get_pmml_string(tokensForCurrentParentIndex, mutatedVariableName), sep='')
-        } 
+        else if(does_tokens_have_function_definition(tokens_for_current_parent_index) == TRUE) {
+          local_transformation_string <- paste(local_transformation_string, define_function_get_pmml_string(tokens_for_current_parent_index, mutated_variable_name), sep='')
+        }
         else {
-          assign_expr_token <- getTokenWithAssignmentCode(tokensForCurrentParentIndex)
-          child_tokens <- getChildTokensForParent(assign_expr_token, tokensForCurrentParentIndex)
-          possible_row_var <- getChildTokensForParent(child_tokens[1, ], tokensForCurrentParentIndex)[1, ]
+          assign_expr_token <- get_token_with_assignment_code(tokens_for_current_parent_index)
+          child_tokens <- get_child_tokens_for_parent(assign_expr_token, tokens_for_current_parent_index)
+          possible_row_var <- get_child_tokens_for_parent(child_tokens[1, ], tokens_for_current_parent_index)[1, ]
           # If this is an expression to get the row from a data frame and store it in a variable for eg. table[col1 == 'val' & col2 == 'val2', ]
           # We will add it to the table of row accesses and use it when we encounter an expression that accesses the column from this row
-          if(dollar_op.is_expr(assign_expr_token, tokensForCurrentParentIndex) == FALSE & 
-             data_frame.is_expr(assign_expr_token, tokensForCurrentParentIndex) & data_frame.is_wildcard_expr(assign_expr_token, tokensForCurrentParentIndex)) {
+          if(dollar_op_is_expr(assign_expr_token, tokens_for_current_parent_index) == FALSE &
+             data_frame_is_expr(assign_expr_token, tokens_for_current_parent_index) & data_frame_is_wildcard_expr(assign_expr_token, tokens_for_current_parent_index)) {
             row_vars <<- rbind(row_vars,
                                data.frame(
-                                 row_name = c(mutatedVariableName),
-                                 pmml = c(data_frame.get_pmml_node(assign_expr_token, tokensForCurrentParentIndex))
+                                 row_name = c(mutated_variable_name),
+                                 pmml = c(data_frame_get_pmml_node(assign_expr_token, tokens_for_current_parent_index))
                                ))
-          } 
+          }
           else {
-            pmml_str_for_var <- derived_field.get_pmml_str_for_var(
-              mutatedVariableName, tokensForCurrentParentIndex[1, ], tokensForCurrentParentIndex, comments_for_current_expr, evaluated_variables)
-            localTransformationString <- paste(localTransformationString, pmml_str_for_var, sep='')
+            pmml_str_for_var <- derived_field_get_pmml_str_for_var(
+              mutated_variable_name, tokens_for_current_parent_index[1, ], tokens_for_current_parent_index, comments_for_current_expr, evaluated_variables)
+            local_transformation_string <- paste(local_transformation_string, pmml_str_for_var, sep='')
           }
         }
-        
-        print(glue::glue("Done parsing variable {mutatedVariableName}"))
+
+        print(glue::glue("Done parsing variable {mutated_variable_name}"))
       }
     }
 
-    if(nextZeroParentIndex == nrow(tokens)) {
+    if(next_zero_parent_index == nrow(tokens)) {
       break
     }
 
-    tokens <- tokens[nextZeroParentIndex:nrow(tokens), ]
+    tokens <- tokens[next_zero_parent_index:nrow(tokens), ]
 
-    nextZeroParentIndex <- getIndexOfNextZeroParent(tokens)
+    next_zero_parent_index <- get_index_of_next_zero_parent(tokens)
   }
 
-  if(srcFile == TRUE) {
+  if(src_file == TRUE) {
     # Reset the workspace to before the addin was run
     load(file.path(getwd(), 'temp/temp.RData'))
     # Remove the file which had the workspace objects
     file.remove(file.path(getwd(), 'temp/temp.RData'))
-    
+
     remove("gl_row_functions", envir = .GlobalEnv)
-    
-    return(paste('<PMML>', taxonomy, '<LocalTransformations>', localTransformationString, '</LocalTransformations></PMML>', sep = ''))
+
+    return(paste('<PMML>', taxonomy, '<LocalTransformations>', local_transformation_string, '</LocalTransformations></PMML>', sep = ''))
   } else {
-    return(list('taxonomy' = taxonomy, 'localTransformationString' = localTransformationString, mutatedVariables = mutatedVariables))
+    return(list('taxonomy' = taxonomy, 'local_transformation_string' = local_transformation_string, mutated_variables = mutated_variables))
   }
 }

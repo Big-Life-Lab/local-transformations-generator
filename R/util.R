@@ -1,30 +1,30 @@
-util.get_var_and_func_names <- function(tokens) {
+util_get_var_and_func_names <- function(tokens) {
   leftAssignTokens <- tokens[which(tokens$token == LEFT_ASSIGN_TOKEN), ]
-  
+
   if(nrow(leftAssignTokens) == 0) {
     return(leftAssignTokens)
   }
-  
+
   var_and_func_names <- c()
-  func_expr_tokens <- tokens.create_empty_tokens_df()
+  func_expr_tokens <- tokens_create_empty_tokens_df()
   for(i in 1:nrow(leftAssignTokens)) {
-    leftAssignToken <- leftAssignTokens[i, ]
-    
+    left_assign_token <- leftAssignTokens[i, ]
+
     is_within_function <- FALSE
     if(nrow(func_expr_tokens) != 0) {
       for(j in 1:nrow(func_expr_tokens)) {
-        if(isDescendantOfTokenWithId(
-          func_expr_tokens[j, "id"], leftAssignToken, tokens)) {
+        if(is_descendant_of_token_with_id(
+          func_expr_tokens[j, "id"], left_assign_token, tokens)) {
           is_within_function <- TRUE
           break;
-        } 
-      }  
+        }
+      }
     }
-    
+
     if(is_within_function == FALSE) {
-      child_tokens <- tokens.get_child_tokens_for_parent_id(leftAssignToken$parent, tokens)
+      child_tokens <- tokens_get_child_tokens_for_parent_id(left_assign_token$parent, tokens)
       var_or_func_name_expr_token <- child_tokens[1, ]
-      var_or_func_name_symbol_token <- getChildTokensForParent(
+      var_or_func_name_symbol_token <- get_child_tokens_for_parent(
         var_or_func_name_expr_token,
         tokens
       )[1, ]
@@ -32,22 +32,22 @@ util.get_var_and_func_names <- function(tokens) {
         var_and_func_names,
         var_or_func_name_symbol_token$text
       )
-      
-      if(define_function.is(child_tokens[3, ], tokens)) {
+
+      if(define_function_is(child_tokens[3, ], tokens)) {
         func_expr_tokens <- rbind(func_expr_tokens, child_tokens[3, ])
       }
     }
   }
-  
+
   return(var_and_func_names)
 }
 
-getTokenWithAssignmentCode <- function(tokens) {
-  leftAssignToken <- tokens[which(tokens$token == LEFT_ASSIGN_TOKEN), ][1, ]
-  
-  if(is.na(leftAssignToken$id)) {
-    return(tokens.create_empty_tokens_df())
+get_token_with_assignment_code <- function(tokens) {
+  left_assign_token <- tokens[which(tokens$token == LEFT_ASSIGN_TOKEN), ][1, ]
+
+  if(is.na(left_assign_token$id)) {
+    return(tokens_create_empty_tokens_df())
   }
 
-  return(getTokenAfterTokenWithId(tokens, leftAssignToken$id))
+  return(get_token_after_token_with_id(tokens, left_assign_token$id))
 }

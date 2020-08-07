@@ -30,55 +30,55 @@ SPECIAL_TOKEN <- 'SPECIAL'
 
 COMMENT_TOKEN <- 'COMMENT'
 
-isSymbolToken <- function(token) {
+is_symbol_token <- function(token) {
   return(token$token == SYMBOL_TOKEN)
 }
 
-getExprWithIdInTokens <- function(id, tokens) {
+get_expr_with_id_in_tokens <- function(id, tokens) {
   return(tokens[which(tokens$token==EXPR_TOKEN & tokens$id == id), ])
 }
 
-getSymbolsInTokens <- function(tokens) {
+get_symbols_in_tokens <- function(tokens) {
   return(tokens[which(tokens$token==SYMBOL_TOKEN), ])
 }
 
-getSymbolFormalsTokens <- function(tokens) {
+get_symbol_formals_tokens <- function(tokens) {
   return(tokens[which(tokens$token==SYMBOL_FORMALS_TOKEN), ])
 }
 
-getTokensWithParent <- function(parent, tokens) {
+get_tokens_with_parent <- function(parent, tokens) {
   return(tokens[which(tokens$parent==parent), ])
 }
 
-getCommentTokensWithParent <- function(parent_id, tokens) {
+get_comment_tokens_with_parent <- function(parent_id, tokens) {
   neg_parent_id <- parent_id*-1;
 
   return(tokens[which(tokens$parent == neg_parent_id & tokens$token == COMMENT_TOKEN), ])
 }
 
-getTokenWithId <- function(id, tokens) {
+get_token_with_id <- function(id, tokens) {
   return(tokens[which(tokens$id == id), ])
 }
 
-getFunctionTokens <- function(tokens) {
+get_function_tokens <- function(tokens) {
   return(tokens[which(tokens$token == FUNCTION_TOKEN), ])
 }
 
-getChildTokensForParent <- function(parent, tokens) {
+get_child_tokens_for_parent <- function(parent, tokens) {
   return(tokens[which(tokens$parent == parent$id), ])
 }
 
-getSpecialTokens <- function(tokens) {
+get_special_tokens <- function(tokens) {
   return(tokens[which(tokens$token == SPECIAL_TOKEN), ])
 }
 
 #Returns the token which is the parent of the child token argument
-getParentToken <- function(childNode, nodes) {
+get_parent_token <- function(childNode, nodes) {
   return(nodes[nodes$id %in% childNode$parent, ][1, ])
 }
 
 #Checks if the node arg is a descendant of the node with id provided in the id arg from the nodes arg
-isDescendantOfTokenWithId <- function(id, node, nodes) {
+is_descendant_of_token_with_id <- function(id, node, nodes) {
   #If this is the root node return false because we have reached the beginning of the tree
   if(node$parent == 0) {
     return(FALSE)
@@ -90,52 +90,52 @@ isDescendantOfTokenWithId <- function(id, node, nodes) {
   #Otherwise
   else {
     #Get the parent of the node
-    parentNode <- getParentToken(node, nodes)
+    parent_node <- get_parent_token(node, nodes)
     #If the parent does not exist
-    if(is.na(parentNode$id) == TRUE) {
+    if(is.na(parent_node$id) == TRUE) {
       return(FALSE)
     }
 
     #Check if th parent is a descendant
-    return(isDescendantOfTokenWithId(id, parentNode, nodes))
+    return(is_descendant_of_token_with_id(id, parent_node, nodes))
   }
 }
 
 #Returns all the descendants of the node arg from the nodes arg
-getDescendantsOfToken <- function(node, nodes) {
+get_descendants_of_token <- function(node, nodes) {
   #The id fields of all the nodes which are descendants
-  descendantIds <- c()
+  descendant_ids <- c()
 
-  #Go thorugh all the nodes and each one which is a descendant add it's id to the descendantIds vector
+  #Go thorugh all the nodes and each one which is a descendant add it's id to the descendant_ids vector
   if(nrow(nodes) > 0) {
     for(i in 1:nrow(nodes)) {
-      if(isDescendantOfTokenWithId(node$id, nodes[i, ], nodes)) {
-        descendantIds <- c(descendantIds, nodes[i, 'id'])
+      if(is_descendant_of_token_with_id(node$id, nodes[i, ], nodes)) {
+        descendant_ids <- c(descendant_ids, nodes[i, 'id'])
       }
     }
   }
 
-  #Returns all nodes whose id field is part of the descendantIds vector
-  return(nodes[which(nodes$id %in% descendantIds), ])
+  #Returns all nodes whose id field is part of the descendant_ids vector
+  return(nodes[which(nodes$id %in% descendant_ids), ])
 }
 
-getExprTokens <- function(tokens) {
+get_expr_tokens <- function(tokens) {
   return(tokens[which(tokens$token==EXPR_TOKEN), ])
 }
 
-filterOutExprTokens <- function(tokens) {
+filter_out_expr_tokens <- function(tokens) {
   return(tokens[which(tokens$token != EXPR_TOKEN), ])
 }
 
-filterOutCommentTokens <- function(tokens) {
+filter_out_comment_tokens <- function(tokens) {
   return(tokens[which(tokens$token != COMMENT_TOKEN), ])
 }
 
-getSymbolFunctionCallsWithText <- function(text, tokens) {
+get_symbol_function_calls_with_text <- function(text, tokens) {
   return(tokens[which(tokens$token == SYMBOL_FUNCTION_CALL_TOKEN & tokens$text == text), ])
 }
 
-doesTokensHaveRowWithToken <- function(tokens, token) {
+does_tokens_have_row_with_token <- function(tokens, token) {
   if(nrow(tokens[which(tokens$token==token), ]) == 0) {
     return(FALSE)
   }
@@ -144,62 +144,62 @@ doesTokensHaveRowWithToken <- function(tokens, token) {
   }
 }
 
-doesTokensHaveALeftAssign <- function(tokens) {
-  return(doesTokensHaveRowWithToken(tokens, LEFT_ASSIGN_TOKEN))
+does_tokens_have_a_left_assign <- function(tokens) {
+  return(does_tokens_have_row_with_token(tokens, LEFT_ASSIGN_TOKEN))
 }
 
-doesTokensHaveSourceFunctionCall <- function(tokens) {
-  return(nrow(getSymbolFunctionCallsWithText('source', tokens)) == 1)
+does_tokens_have_source_function_call <- function(tokens) {
+  return(nrow(get_symbol_function_calls_with_text('source', tokens)) == 1)
 }
 
-doesTokensHaveFunctionDefinition <- function(tokens) {
-  return(doesTokensHaveRowWithToken(tokens, FUNCTION_TOKEN))
+does_tokens_have_function_definition <- function(tokens) {
+  return(does_tokens_have_row_with_token(tokens, FUNCTION_TOKEN))
 }
 
-isLeftAssignExprToken <- function(exprToken, tokens) {
-  childTokensForExprToken = getChildTokensForParent(exprToken, tokens)
+isleft_assign_expr_token <- function(expr_token, tokens) {
+  child_tokens_for_expr_token = get_child_tokens_for_parent(expr_token, tokens)
 
-  return(doesTokensHaveALeftAssign(childTokensForExprToken))
+  return(does_tokens_have_a_left_assign(child_tokens_for_expr_token))
 }
 
-#Is the symbolToken argument part of a left assign expression and is it the symbol to which a value is being assigned
-#eg. test <- 1. Here if the test symbol token was passed as the symbolToken argument the function would return true
-isLeftAssignmentSymbolToken <- function(symbolToken, tokens) {
-  parentTokenForSymbolToken = getParentToken(symbolToken, tokens)
+#Is the symbol_token argument part of a left assign expression and is it the symbol to which a value is being assigned
+#eg. test <- 1. Here if the test symbol token was passed as the symbol_token argument the function would return true
+is_left_assignment_symbol_token <- function(symbol_token, tokens) {
+  parent_token_for_symbol_token <- get_parent_token(symbol_token, tokens)
 
-  if(isLeftAssignExprToken(parentTokenForSymbolToken, tokens)) {
-    childTokensForLeftAssignExprToken <- getChildTokensForParent(parentTokenForSymbolToken, tokens)
-    return(childTokensForLeftAssignExprToken[1, 'id'] == symbolToken$id)
+  if(isleft_assign_expr_token(parent_token_for_symbol_token, tokens)) {
+    child_tokens_for_left_assign_expr_token <- get_child_tokens_for_parent(parent_token_for_symbol_token, tokens)
+    return(child_tokens_for_left_assign_expr_token[1, 'id'] == symbol_token$id)
   } else {
     return(FALSE)
   }
 }
 
 # Returns the token row that comes after the token with id the same as the id arg
-getTokenAfterTokenWithId <- function(tokens, id) {
-  tokenIndex <- NA
+get_token_after_token_with_id <- function(tokens, id) {
+  token_index <- NA
 
   for(i in 1:nrow(tokens)) {
     if(tokens[i, 'id'] == id) {
-      tokenIndex <- i
+      token_index <- i
       break
     }
   }
 
-  if(is.na(tokenIndex)) {
+  if(is.na(token_index)) {
     stop(glue::glue('No token with id {id} found'))
   } else {
     return(tokens[i+1, ])
   }
 }
 
-tokens.create_empty_tokens_df <- function() {
+tokens_create_empty_tokens_df <- function() {
   df <- data.frame(matrix(ncol = 9, nrow = 0))
   colnames(df) <- c("line1", "col1", "line2", "col2", "id", "parent", "token", "terminal", "text")
-  
+
   return(df)
 }
 
-tokens.get_child_tokens_for_parent_id <- function(parent_id, tokens) {
+tokens_get_child_tokens_for_parent_id <- function(parent_id, tokens) {
   return(tokens[tokens$parent == parent_id, ])
 }

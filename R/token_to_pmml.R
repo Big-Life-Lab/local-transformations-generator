@@ -1,116 +1,116 @@
-isBooleanDataType <- function(token) {
+is_boolean_data_type <- function(token) {
   return((token$text == 'TRUE' | token$text == 'FALSE') & token$token == NUM_CONST_TOKEN)
 }
 
-getPmmlStringForSymbol <- function(symbol) {
-  fieldRefName <- symbol$text
+get_pmml_string_for_symbol <- function(symbol) {
+  field_ref_name <- symbol$text
 
-  return(glue::glue('<FieldRef field="{fieldRefName}"/>'))
+  return(glue::glue('<FieldRef field="{field_ref_name}"/>'))
 }
 
-formatSymbolName <- function(symbol) {
+format_symbol_name <- function(symbol) {
   return(gsub("'|\"", "", symbol$text))
 }
 
-formatConstantTokenText <- function(constant) {
-  formattedValue <- constant$text
+format_constant_token_text <- function(constant) {
+  formatted_value <- constant$text
   if(constant$token == STR_CONST_TOKEN) {
-    formattedValue <- gsub("'", "", constant$text)
-    formattedValue <- gsub('"', "", formattedValue)
+    formatted_value <- gsub("'", "", constant$text)
+    formatted_value <- gsub('"', "", formatted_value)
   }
   else if(constant$text == 'NA' & constant$token == NUM_CONST_TOKEN) {
-    formattedValue <- 'NA'
+    formatted_value <- 'NA'
   }
-  else if(isBooleanDataType(constant)) {
-    formattedValue <- tolower(constant$text)
+  else if(is_boolean_data_type(constant)) {
+    formatted_value <- tolower(constant$text)
   }
 
-  return(formattedValue)
+  return(formatted_value)
 }
 
-getPmmlStringForConstant <- function(constant) {
-  dataType <- 'double'
+get_pmml_string_for_constant <- function(constant) {
+  data_type <- 'double'
 
-  formattedValue <- formatConstantTokenText(constant)
+  formattedValue <- format_constant_token_text(constant)
 
   if(constant$token == STR_CONST_TOKEN) {
-    dataType <- 'string'
+    data_type <- 'string'
   }
   else if(constant$text == 'NA' & constant$token == NUM_CONST_TOKEN) {
-    dataType <- 'NA'
+    data_type <- 'NA'
   }
   else if(constant$token == NULL_CONST_TOKEN) {
-    dataType <- 'NULL'
+    data_type <- 'NULL'
   }
-  else if(isBooleanDataType(constant)) {
-    dataType <- 'boolean'
+  else if(is_boolean_data_type(constant)) {
+    data_type <- 'boolean'
   }
 
-  return(glue::glue('<Constant dataType="{dataType}">{formattedValue}</Constant>'))
+  return(glue::glue('<Constant dataType="{data_type}">{formattedValue}</Constant>'))
 }
 
-getPmmlStringForLogicalOperator <- function(logicalToken, nestedPmmlString) {
-  functionType <- 'unknown'
+get_pmml_string_for_logical_operator <- function(logical_token, nested_pmml_string) {
+  function_type <- 'unknown'
 
-  logicalTokenToken <- logicalToken$token
+  logical_token_token <- logical_token$token
 
-  if(logicalTokenToken == AND_TOKEN | logicalTokenToken == AND2_TOKEN) {
-    functionType <- 'and'
-  } else if(logicalTokenToken %in% OR_TOKENS) {
-    functionType <- 'or'
-  } else if(logicalTokenToken == EQUAL_TO_TOKEN) {
-    functionType <- 'equal'
-  } else if(logicalTokenToken == NOT_EQUAL_TO_TOKEN) {
-    functionType <- 'notEqual'
-  } else if(logicalTokenToken == LESS_THAN_TOKEN) {
-    functionType <- 'lessThan'
-  } else if(logicalTokenToken == LESS_THAN_OR_EQUAL_TO_TOKEN) {
-    functionType <- 'lessOrEqual'
-  } else if(logicalTokenToken == GREATER_THAN_TOKEN) {
-    functionType <- 'greaterThan'
-  } else if(logicalTokenToken == GREATER_THAN_OR_EQUAL_TO_TOKEN) {
-    functionType <- 'greaterOrEqual'
-  } else if(logicalTokenToken == NOT_TOKEN) {
-    functionType <- 'not'
+  if(logical_token_token == AND_TOKEN | logical_token_token == AND2_TOKEN) {
+    function_type <- 'and'
+  } else if(logical_token_token %in% OR_TOKENS) {
+    function_type <- 'or'
+  } else if(logical_token_token == EQUAL_TO_TOKEN) {
+    function_type <- 'equal'
+  } else if(logical_token_token == NOT_EQUAL_TO_TOKEN) {
+    function_type <- 'notEqual'
+  } else if(logical_token_token == LESS_THAN_TOKEN) {
+    function_type <- 'lessThan'
+  } else if(logical_token_token == LESS_THAN_OR_EQUAL_TO_TOKEN) {
+    function_type <- 'lessOrEqual'
+  } else if(logical_token_token == GREATER_THAN_TOKEN) {
+    function_type <- 'greaterThan'
+  } else if(logical_token_token == GREATER_THAN_OR_EQUAL_TO_TOKEN) {
+    function_type <- 'greaterOrEqual'
+  } else if(logical_token_token == NOT_TOKEN) {
+    function_type <- 'not'
   } else {
-    stop(glue::glue('Unknown functionType for logical operator {logicalToken}'))
+    stop(glue::glue('Unknown function_type for logical operator {logical_token}'))
   }
 
-  return(glue::glue('<Apply function="{functionType}">{nestedPmmlString}</Apply>'))
+  return(glue::glue('<Apply function="{function_type}">{nested_pmml_string}</Apply>'))
 }
 
-getPmmlStringForMathToken <- function(mathToken, nestedPmmlString) {
-  functionType <- gsub("'", "", mathToken$token)
+get_pmml_string_for_math_token <- function(math_token, nested_pmml_string) {
+  function_type <- gsub("'", "", math_token$token)
 
-  return(glue::glue('<Apply function="{functionType}">{nestedPmmlString}</Apply>'))
+  return(glue::glue('<Apply function="{function_type}">{nested_pmml_string}</Apply>'))
 }
 
-getPmmlStringForSymbolFunctionCall <- function(symbolFunctionCallToken, nestedPmmlString) {
-  functionType <- symbolFunctionCallToken$text
-  
-  return(glue::glue('<Apply function="{functionType}">{nestedPmmlString}</Apply>'))
+get_pmml_string_for_symbol_function_call <- function(symbol_function_call_token, nested_pmml_string) {
+  function_type <- symbol_function_call_token$text
+
+  return(glue::glue('<Apply function="{function_type}">{nested_pmml_string}</Apply>'))
 }
 
-getPmmlStringForFunctionArgTokens <- function(functionArgTokens) {
-  if(nrow(functionArgTokens) == 0) {
+get_pmml_string_for_function_arg_tokens <- function(function_arg_tokens) {
+  if(nrow(function_arg_tokens) == 0) {
     return('')
   }
 
-  parametersPmmlStringForFunction <- ''
-  for(i in 1:nrow(functionArgTokens)) {
-    currentArgName <- functionArgTokens[i ,'text']
-    parameterPmmlStringForCurrentArgToken <- glue::glue('<ParameterField name="{currentArgName}" dataType="double"/>')
-    parametersPmmlStringForFunction <- paste(parametersPmmlStringForFunction, parameterPmmlStringForCurrentArgToken, sep="")
+  parameters_pmml_string_for_function <- ''
+  for(i in 1:nrow(function_arg_tokens)) {
+    current_arg_name <- function_arg_tokens[i ,'text']
+    parameter_pmml_string_for_current_arg_token <- glue::glue('<ParameterField name="{current_arg_name}" dataType="double"/>')
+    parameters_pmml_string_for_function <- paste(parameters_pmml_string_for_function, parameter_pmml_string_for_current_arg_token, sep="")
   }
 
-  return(parametersPmmlStringForFunction)
+  return(parameters_pmml_string_for_function)
 }
 
-getPmmlStringForDefineFunction <- function(functionName, functionArgsTokens, functionBodyPmmlString) {
-  return(glue::glue('<DefineFunction name="{functionName}">{getPmmlStringForFunctionArgTokens(functionArgsTokens)}{functionBodyPmmlString}</DefineFunction>'))
+get_pmml_string_for_define_function <- function(function_name, function_args_tokens, function_body_pmml_string) {
+  return(glue::glue('<DefineFunction name="{function_name}">{get_pmml_string_for_function_arg_tokens(function_args_tokens)}{function_body_pmml_string}</DefineFunction>'))
 }
 
-getPmmlStringForColonToken <- function(nestedPmmlString) {
-  return(glue::glue('<Apply function="colonOperator">{nestedPmmlString}</Apply>'))
+get_pmml_string_for_colon_token <- function(nested_pmml_string) {
+  return(glue::glue('<Apply function="colonOperator">{nested_pmml_string}</Apply>'))
 }
 

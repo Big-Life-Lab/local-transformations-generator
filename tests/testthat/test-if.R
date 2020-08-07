@@ -53,8 +53,8 @@ test_that("If expressions outside functions are correctly generated", {
 </DerivedField>
 </LocalTransformations>
 </PMML>'
-  
-  test_utils.test_code_file(
+
+  test_utils_test_code_file(
     "test-if/code/test-if-code-1.R",
     expected_pmml
   )
@@ -135,8 +135,8 @@ test_that("If expressions inside functions that are not the last expression are 
 </DefineFunction>
 </LocalTransformations>
 </PMML>'
-  
-  test_utils.test_code_file("test-if/code/test-if-code-2.R", expected_pmml)
+
+  test_utils_test_code_file("test-if/code/test-if-code-2.R", expected_pmml)
 })
 
 test_that("If expressions inside functions as the last expressions are correctly generated",  {
@@ -170,6 +170,6 @@ test_that("If expressions inside functions as the last expressions are correctly
 </DefineFunction>
 </LocalTransformations>
 </PMML>'
-  
-  test_utils.test_code_file("test-if/code/test-if-code-3.R", expected_pmml)
+
+  test_utils_test_code_file("test-if/code/test-if-code-3.R", expected_pmml)
 })

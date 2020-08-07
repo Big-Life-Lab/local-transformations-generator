@@ -11,8 +11,8 @@ test_that("Accessing rows outside functions are correctly generated", {
 </DerivedField>
 </LocalTransformations>
 </PMML>'
-  
-  test_utils.test_code_file("test-df-row/code/test-df-row-code-1.R", expected_pmml)
+
+  test_utils_test_code_file("test-df-row/code/test-df-row-code-1.R", expected_pmml)
 })
 
 test_that("Accessing rows inside functions are correctly generated", {
@@ -59,6 +59,6 @@ test_that("Accessing rows inside functions are correctly generated", {
 </DerivedField>
 </LocalTransformations>
 </PMML>'
-  
-  test_utils.test_code_file("test-df-row/code/test-df-row-code-2.R", expected_pmml)
+
+  test_utils_test_code_file("test-df-row/code/test-df-row-code-2.R", expected_pmml)
 })

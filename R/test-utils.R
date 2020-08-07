@@ -8,12 +8,12 @@
 #' @export
 #'
 #' @examples
-test_utils.test_code_file <- function(file_path, expected_pmml) {
+test_utils_test_code_file <- function(file_path, expected_pmml) {
   formatted_expected_pmml <- gsub("[\r\n]", "", expected_pmml)
-  actual_pmml <- getPmmlStringFromRFile(
-    file.path("../../assets/test", file_path), 
-    srcFile = TRUE
+  actual_pmml <- pmml::get_pmml_string_from_r_file(
+    file.path("../../assets/test", file_path),
+    src_file = TRUE
   )
-  
+
   expect_equal(actual_pmml, formatted_expected_pmml)
 }

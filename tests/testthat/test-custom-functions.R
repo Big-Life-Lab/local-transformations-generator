@@ -18,8 +18,8 @@ test_that("Simple custom function PMML is correctly generated", {
 </DefineFunction>
 </LocalTransformations>
 </PMML>'
-    
-    test_utils.test_code_file("test-custom-functions/code/test-define-function-code.R", expected_pmml)
+
+    test_utils_test_code_file("test-custom-functions/code/test-define-function-code.R", expected_pmml)
 })
 
 test_that("Default function arguments are correctly generated", {
@@ -68,8 +68,8 @@ test_that("Default function arguments are correctly generated", {
 </DefineFunction>
 </LocalTransformations>
 </PMML>'
-  
-  test_utils.test_code_file("test-custom-functions/code/test-default-function-args-code.R", expected_pmml)
+
+  test_utils_test_code_file("test-custom-functions/code/test-default-function-args-code.R", expected_pmml)
 })
 
 test_that("No return statement function are correctly generated", {
@@ -80,6 +80,6 @@ test_that("No return statement function are correctly generated", {
 </DefineFunction>
 </LocalTransformations>
 </PMML>'
-  
-  test_utils.test_code_file("test-custom-functions/code/test-no-return-code.R", expected_pmml)
+
+  test_utils_test_code_file("test-custom-functions/code/test-no-return-code.R", expected_pmml)
 })

@@ -17,8 +17,8 @@ test_that("Wildcard column access expressions outside functions are correctly ge
 </DerivedField>
 </LocalTransformations>
 </PMML>'
-  
-  test_utils.test_code_file("test-df-col/code/test-df-col-code-1.R", expected_pmml)
+
+  test_utils_test_code_file("test-df-col/code/test-df-col-code-1.R", expected_pmml)
 })
 
 test_that("Non-wildcard column access expressions outside functions are correctly generated", {
@@ -32,14 +32,14 @@ test_that("Non-wildcard column access expressions outside functions are correctl
 </DerivedField>
 </LocalTransformations>
 </PMML>'
-  
-  test_utils.test_code_file("test-df-col/code/test-df-col-code-2.R", expected_pmml)
+
+  test_utils_test_code_file("test-df-col/code/test-df-col-code-2.R", expected_pmml)
 })
 
 test_that("Wildcard column access expressions inside functions throw an error", {
-  expect_error(getPmmlStringFromRFile(file.path(getwd(), "../../assets/test/test-df-col/code/test-df-col-code-3.R"), srcFile = TRUE), strings.unsupported_df_col_access_expr_error)
+  expect_error(get_pmml_string_from_r_file(file.path(getwd(), "../../assets/test/test-df-col/code/test-df-col-code-3.R"), src_file = TRUE), strings_unsupported_df_col_access_expr_error)
 })
 
 test_that("Non-wildcard column access expressions inside functions throw an error", {
-  expect_error(getPmmlStringFromRFile(file.path(getwd(), "../../assets/test/test-df-col/code/test-df-col-code-4.R"), srcFile = TRUE), strings.unsupported_df_col_access_expr_error)
+  expect_error(get_pmml_string_from_r_file(file.path(getwd(), "../../assets/test/test-df-col/code/test-df-col-code-4.R"), src_file = TRUE), strings_unsupported_df_col_access_expr_error)
 })
