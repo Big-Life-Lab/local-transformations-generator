@@ -157,7 +157,7 @@ does_tokens_have_function_definition <- function(tokens) {
 }
 
 isleft_assign_expr_token <- function(expr_token, tokens) {
-  child_tokens_for_expr_token = get_child_tokens_for_parent(expr_token, tokens)
+  child_tokens_for_expr_token <- get_child_tokens_for_parent(expr_token, tokens)
 
   return(does_tokens_have_a_left_assign(child_tokens_for_expr_token))
 }
