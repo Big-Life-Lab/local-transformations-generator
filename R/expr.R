@@ -38,7 +38,8 @@ expr_generic_get_pmml_str_for_expr <- function(
         return(dollar_op_get_pmml_node(
           expr, tokens, data_frame_get_pmml_node(tokens_whose_parent_is_the_current_expr[1, ], tokens)))
       }
-    } else if(data_frame_is_expr(expr, tokens)) {
+    }
+    else if(data_frame_is_expr(expr, tokens)) {
       return(data_frame_get_pmml_node(expr, tokens))
     }
     else {
