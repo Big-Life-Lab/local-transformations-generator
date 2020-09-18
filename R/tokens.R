@@ -167,7 +167,7 @@ isleft_assign_expr_token <- function(expr_token, tokens) {
 is_left_assignment_symbol_token <- function(symbol_token, tokens) {
   parent_token_for_symbol_token <- get_parent_token(symbol_token, tokens)
 
-  if(isleft_assign_expr_token(parent_token_for_symbol_token, tokens)) {
+  if(isleft_assign_expr_token(get_parent_token(parent_token_for_symbol_token, tokens), tokens)) {
     child_tokens_for_left_assign_expr_token <- get_child_tokens_for_parent(parent_token_for_symbol_token, tokens)
     return(child_tokens_for_left_assign_expr_token[1, 'id'] == symbol_token$id)
   } else {
