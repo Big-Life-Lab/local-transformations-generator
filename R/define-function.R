@@ -448,7 +448,7 @@ define_function_get_symbols_to_convert_to_func_calls <- function(func_arg_names,
   if(dollar_op_is_expr(expr, tokens)) {
     symbol_tokens <- subset(
       symbol_tokens,
-      symbol_tokens$text != dollar_op_get_output_col(return_arg_expr_token, tokens)
+      symbol_tokens$text != dollar_op_get_output_col(expr, tokens)
     )
   }
 
