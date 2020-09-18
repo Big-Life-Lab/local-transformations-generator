@@ -19,9 +19,13 @@ get_r_arguments_into_function_string <- function(original_function_arg_tokens) {
   }
 
   #The r string for the arguments into the function
-  r_arguments_into_function_string <- ''
+  r_arguments_into_function_string <- NA
   for(i in 1:nrow(original_function_arg_tokens)) {
-    r_arguments_into_function_string <- paste(r_arguments_into_function_string, original_function_arg_tokens[i, 'text'], sep=',')
+    if(is.na(r_arguments_into_function_string)) {
+      r_arguments_into_function_string <- original_function_arg_tokens[i, 'text']
+    } else {
+      r_arguments_into_function_string <- paste(r_arguments_into_function_string, original_function_arg_tokens[i, 'text'], sep=',')
+    }
   }
 
   return(r_arguments_into_function_string)
