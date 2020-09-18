@@ -8,9 +8,13 @@ dollar_op_is_expr <- function(expr, tokens) {
 }
 
 dollar_op_get_pmml_node <- function(expr, tokens, innerText) {
-  output_col <- get_child_tokens_for_parent(expr, tokens)[3, 'text']
+  output_col <- dollar_op_get_output_col(expr, tokens)
 
   return(glue::glue('<MapValues outputColumn="{output_col}">{innerText}</MapValues>'))
+}
+
+dollar_op_get_output_col <- function(expr, tokens) {
+  return(get_child_tokens_for_parent(expr, tokens)[3, 'text'])
 }
 
 # Get the variable which this $ operator is being used on

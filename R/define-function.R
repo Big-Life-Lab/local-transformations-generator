@@ -78,11 +78,10 @@ define_function_get_pmml_string <- function(tokens, function_name) {
         pmml_string_for_return_arg_expr_token <- define_function_get_pmml_str_for_expr(return_arg_expr_token, get_descendants_of_token(return_arg_expr_token, tokens), function_name, function_param_name_tokens, TRUE)
       }
 
-      #Find all the symbols used within the expression which are not part of the function arguments
-      symbols_within_return_arg_expr_which_are_not_function_arguments <- get_symbols_in_tokens(get_descendants_of_token(return_arg_expr_token, tokens))
-      symbols_within_return_arg_expr_which_are_not_function_arguments <- subset(
-        symbols_within_return_arg_expr_which_are_not_function_arguments,
-        !(symbols_within_return_arg_expr_which_are_not_function_arguments$text %in% non_row_function_arg_tokens$text)
+      symbols_within_return_arg_expr_which_are_not_function_arguments <- define_function_get_symbols_to_convert_to_func_calls(
+        non_row_function_arg_tokens$text,
+        return_arg_expr_token,
+        tokens
       )
 
       if(nrow(symbols_within_return_arg_expr_which_are_not_function_arguments) != 0) {
@@ -94,7 +93,7 @@ define_function_get_pmml_string <- function(tokens, function_name) {
           r_function_name_for_current_symbol <- glue::glue('{function_name}_{symbols_within_return_arg_expr_which_are_not_function_arguments[j, "text"]}')
           r_function_args <- get_r_arguments_into_function_string(non_row_function_arg_tokens)
           r_code <- glue::glue('{r_function_name_for_current_symbol}({r_function_args})')
-          tokens_for_r_Code <- getParseData(parse(text = r_code))
+          tokens_for_r_Code <- getParseData(parse(text = r_code, keep.source = TRUE))
           pmml_string_for_r_code <- define_function_get_pmml_str_for_expr(tokens_for_r_Code[1, ], tokens_for_r_Code, function_name, function_param_name_tokens, TRUE)
           pmml_string_for_r_code <- gsub(
             r_function_name_for_current_symbol,
@@ -326,10 +325,7 @@ get_pmml_string_for_expr_token_within_function <- function(inner_func_name, inne
 
   original_function_arg_names <- original_function_arg_tokens$text
 
-  #Get all the symbols within this expression which are not part of the original function arguments. These need to be converted to Function calls in the PMML string for this expression
-  symbols_not_part_of_original_function_args <- get_symbols_in_tokens(get_descendants_of_token(inner_function_expr_token, tokens))
-  symbols_not_part_of_original_function_args <- symbols_not_part_of_original_function_args[is_left_assignment_symbol_token(symbols_not_part_of_original_function_args, tokens) == FALSE, ]
-  symbols_not_part_of_original_function_args <- subset(symbols_not_part_of_original_function_args, !(symbols_not_part_of_original_function_args$text %in% original_function_arg_names))
+  symbols_not_part_of_original_function_args <- define_function_get_symbols_to_convert_to_func_calls(original_function_arg_tokens$text, inner_function_expr_token, tokens)
 
   if(nrow(symbols_not_part_of_original_function_args) != 0) {
     #For every symbol not part of the original function argument we
@@ -411,4 +407,50 @@ define_function_get_row_args <- function(func_body_exprs, function_args, tokens)
 
 define_function_is <- function(expr, tokens) {
   return(get_child_tokens_for_parent(expr, tokens)[1, "token"] == FUNCTION_TOKEN)
+}
+
+# For all the symbols that are descendants of the expr token, return only those
+# which need to be converted to their respective function calls. 
+define_function_get_symbols_to_convert_to_func_calls <- function(func_arg_names, expr, tokens) {
+  # Find all the symbols used within the expression which are not part of the function arguments
+  symbol_tokens <- get_symbols_in_tokens(get_descendants_of_token(expr, tokens))
+
+  left_assign_symbol_ids <- c()
+  for(i in seq_len(nrow(symbol_tokens))) {
+     if(is_left_assignment_symbol_token(symbol_tokens[i, ], tokens)) {
+       left_assign_symbol_ids <- c(left_assign_symbol_ids, symbol_tokens[i, ]$id)
+     }
+  }
+  symbol_tokens <- symbol_tokens[!(symbol_tokens$id %in% left_assign_symbol_ids), ]
+
+  symbol_tokens <- subset(
+    symbol_tokens,
+    !(symbol_tokens$text %in% func_arg_names)
+  )
+
+  if(data_frame_is_col_access(expr, tokens)) {
+    data_frame_expr <- get_expr_tokens(get_child_tokens_for_parent(expr, tokens))[1, ]
+
+    table_name <- data_frame_get_table_name(data_frame_expr, tokens)
+    symbol_tokens <- subset(
+      symbol_tokens,
+      symbol_tokens$text != table_name
+    )
+
+    data_frame_iterate_column_conditions(data_frame_expr, tokens, function(column, field_or_constant) {
+      symbol_tokens <<- subset(
+        symbol_tokens,
+        symbol_tokens$text != column$text
+      )
+    })
+  }
+
+  if(dollar_op_is_expr(expr, tokens)) {
+    symbol_tokens <- subset(
+      symbol_tokens,
+      symbol_tokens$text != dollar_op_get_output_col(return_arg_expr_token, tokens)
+    )
+  }
+
+  return(symbol_tokens[complete.cases(symbol_tokens), ])
 }
