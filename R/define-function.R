@@ -120,6 +120,10 @@ define_function_get_pmml_string <- function(tokens, function_name) {
     }
   }
 
+  if(nrow(defaulted_args) > 0) {
+    globals_add_default_param_function(function_name, nrow(function_param_name_tokens), nrow(defaulted_args))
+  }
+
   if(length(row_args) == 0) {
     return(pmml_function_string)
   } else {
@@ -410,7 +414,7 @@ define_function_is <- function(expr, tokens) {
 }
 
 # For all the symbols that are descendants of the expr token, return only those
-# which need to be converted to their respective function calls. 
+# which need to be converted to their respective function calls.
 define_function_get_symbols_to_convert_to_func_calls <- function(func_arg_names, expr, tokens) {
   # Find all the symbols used within the expression which are not part of the function arguments
   symbol_tokens <- get_symbols_in_tokens(get_descendants_of_token(expr, tokens))

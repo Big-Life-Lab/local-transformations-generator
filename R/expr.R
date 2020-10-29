@@ -71,6 +71,20 @@ expr_generic_get_pmml_str_for_expr <- function(
             function_arg_expr_tokens <- function_call_get_function_arg_expr_tokens(expr, tokens)
             function_args_symbol_tokens_pmml_string <- get_pmml_str_for_arg_exprs(function_arg_expr_tokens, tokens)
 
+            # If the function that is called has parameters can be defaulted, then check whether the user
+            # passed them. If they were not passed then add NA's to the end
+            # in the spots where the defaulted args need to go
+            if(globals_is_default_param_function(function_symbol_token$text)) {
+              default_param_function_info <- globals_get_default_param_function(function_symbol_token$text)
+              num_nas_to_add <- default_param_function_info$num_function_params - nrow(function_arg_expr_tokens)
+              if(num_nas_to_add > 0) {
+                for(i in 1:num_nas_to_add) {
+                  function_args_symbol_tokens_pmml_string <- paste(
+                    function_args_symbol_tokens_pmml_string, '<Constant dataType="NA">NA</Constant>', sep = "")
+                }
+              }
+            }
+
             return(get_pmml_string_for_symbol_function_call(function_symbol_token, function_args_symbol_tokens_pmml_string))
           }
         } else {

@@ -339,6 +339,7 @@ get_pmml_string_from_r_file <- function(file_path, src_file=FALSE, mutated_varia
     file.remove(file.path(getwd(), 'temp/temp.RData'))
 
     remove("gl_row_functions", envir = .GlobalEnv)
+    remove("gl_default_param_functions", envir = .GlobalEnv)
 
     return(paste('<PMML>', taxonomy, '<LocalTransformations>', local_transformation_string, '</LocalTransformations></PMML>', sep = ''))
   } else {
