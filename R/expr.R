@@ -124,7 +124,7 @@ expr_generic_get_pmml_str_for_expr <- function(
 
   get_pmml_str_for_arg_exprs <- function(arg_expr_tokens, tokens) {
     function_args_symbol_tokens_pmml_string <- ''
-    for(i in 1:nrow(arg_expr_tokens)) {
+    for(i in seq_len(nrow(arg_expr_tokens))) {
       function_args_symbol_tokens_pmml_string <- paste(
         function_args_symbol_tokens_pmml_string,
         get_pmml_str_for_expr(arg_expr_tokens[i, ], tokens),
