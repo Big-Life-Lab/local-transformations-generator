@@ -13,6 +13,8 @@ test_that("Accessing rows outside functions are correctly generated", {
 </PMML>'
 
   test_utils_test_code_file("test-df-row/code/test-df-row-code-1.R", expected_pmml)
+  expect_false(exists("row_vars"),
+               info = "row_vars has not been cleared from global environment")
 })
 
 test_that("Accessing rows inside functions are correctly generated", {
@@ -61,4 +63,6 @@ test_that("Accessing rows inside functions are correctly generated", {
 </PMML>'
 
   test_utils_test_code_file("test-df-row/code/test-df-row-code-2.R", expected_pmml)
+  expect_false(exists("row_vars"),
+               info = "row_vars has not been cleared from global environment")
 })
