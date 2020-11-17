@@ -4,7 +4,7 @@ SYMBOL_TOKEN <- 'SYMBOL'
 NUM_CONST_TOKEN <- 'NUM_CONST'
 STR_CONST_TOKEN <- 'STR_CONST'
 NULL_CONST_TOKEN <- 'NULL_CONST'
-MATH_TOKENS <- c("'+'", "'-'", "'*'", "'/'")
+MATH_TOKENS <- c("'+'", "'-'", "'*'", "'/'", "'^'")
 COMMENT_TOKEN <- 'COMMENT'
 EQUAL_TO_TOKEN <- 'EQ'
 LESS_THAN_OR_EQUAL_TO_TOKEN <- 'LE'

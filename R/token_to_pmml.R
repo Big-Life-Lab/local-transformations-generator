@@ -81,6 +81,9 @@ get_pmml_string_for_logical_operator <- function(logical_token, nested_pmml_stri
 
 get_pmml_string_for_math_token <- function(math_token, nested_pmml_string) {
   function_type <- gsub("'", "", math_token$token)
+  if(function_type == "^") {
+    function_type = "pow"
+  }
 
   return(glue::glue('<Apply function="{function_type}">{nested_pmml_string}</Apply>'))
 }

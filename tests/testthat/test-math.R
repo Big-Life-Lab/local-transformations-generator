@@ -15,6 +15,12 @@ test_that("Math expressions outside functions are correctly generated", {
 <FieldRef field="f"/>
 </Apply>
 </DerivedField>
+<DerivedField name="g" optype="continuous">
+<Apply function="pow">
+<FieldRef field="h"/>
+<Constant dataType="double">2</Constant>
+</Apply>
+</DerivedField>
 </LocalTransformations>
 </PMML>'
 
@@ -38,6 +44,13 @@ test_that("Math expressions inside functions are correctly generated", {
 <Apply function="/">
 <FieldRef field="e"/>
 <FieldRef field="f"/>
+</Apply>
+</DefineFunction>
+<DefineFunction name="g">
+<ParameterField name="h" dataType="double"/>
+<Apply function="pow">
+<FieldRef field="h"/>
+<Constant dataType="double">2</Constant>
 </Apply>
 </DefineFunction>
 </LocalTransformations>
