@@ -31,3 +31,11 @@ pmml_generic_get_pmml_str_for_token <- function(get_pmml_str_for_expr) {
 
   return(get_pmml_str_for_token)
 }
+
+get_parameter_field_pmml_str <- function(parameter_name) {
+    return(glue::glue('<ParameterField name="{parameter_name}" dataType="double"/>'))
+}
+
+get_field_ref_pmml_str <- function(field_name) {
+    return(glue::glue('<FieldRef field="{field_name}"/>'))
+}

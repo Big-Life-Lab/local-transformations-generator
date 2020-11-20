@@ -222,7 +222,7 @@ get_pmml_string_from_r_file <- function(file_path, src_file=FALSE, mutated_varia
     # Save the current workspace in the temp directory. Since we are going to be evaluating each line of code we don't want to overwrite a person's workspace objects as we execute the code
     save.image(file=file.path(getwd(), 'temp/temp.RData'))
 
-    assign("row_vars", data.frame(), envir = .GlobalEnv)
+    assign("row_vars", list(), envir = .GlobalEnv)
     assign("gl_row_functions", list(), envir = .GlobalEnv)
   }
 
@@ -306,11 +306,17 @@ get_pmml_string_from_r_file <- function(file_path, src_file=FALSE, mutated_varia
           # We will add it to the table of row accesses and use it when we encounter an expression that accesses the column from this row
           if(dollar_op_is_expr(assign_expr_token, tokens_for_current_parent_index) == FALSE &
              data_frame_is_expr(assign_expr_token, tokens_for_current_parent_index) & data_frame_is_wildcard_expr(assign_expr_token, tokens_for_current_parent_index)) {
-            row_vars <<- rbind(row_vars,
-                               data.frame(
-                                 row_name = c(mutated_variable_name),
-                                 pmml = c(data_frame_get_pmml_node(assign_expr_token, tokens_for_current_parent_index))
-                               ))
+            col_symbol_conditions <- c()
+            data_frame_iterate_column_conditions(assign_expr_token, tokens_for_current_parent_index, function(column_name, field_or_constant_token) {
+              if(is_symbol_token(field_or_constant_token)) {
+                col_symbol_conditions <<- c(col_symbol_conditions, field_or_constant_token$text)
+              }
+            })
+            globals_add_row_var(
+              mutated_variable_name,
+              col_symbol_conditions,
+              data_frame_get_pmml_node(assign_expr_token, tokens_for_current_parent_index)
+            )
           }
           else {
             pmml_str_for_var <- derived_field_get_pmml_str_for_var(

@@ -31,7 +31,7 @@ expr_generic_get_pmml_str_for_expr <- function(
     else if(dollar_op_is_get_col_from_row_expr(expr, tokens)) {
       row_var_name <- dollar_op_get_var(expr, tokens)
 
-      return(dollar_op_get_pmml_node(expr, tokens, globals_get_pmml_str_for_row_var_name(row_var_name)))
+      return(dollar_op_get_pmml_node(expr, tokens, globals_get_pmml_str_for_row_var(row_var_name)))
     }
     else if(dollar_op_is_expr(expr, tokens)) {
       if(data_frame_is_expr(tokens_whose_parent_is_the_current_expr[1, ], tokens)) {

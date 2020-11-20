@@ -28,6 +28,7 @@ derived_field_get_pmml_str_for_var <- function(var_name, expr, tokens, comment_t
           }
         }
       }
+
       # If an entry for this function exists then increment it's call
       # count by one, otherwise add an entry for it
       if (is.na(row_access_func_call_index) == FALSE) {
@@ -53,8 +54,16 @@ derived_field_get_pmml_str_for_var <- function(var_name, expr, tokens, comment_t
             non_row_func_arg_expr_tokens[non_row_func_arg_expr_tokens$id != func_arg_expr_tokens[i, ]$id, ]
         }
       }
-      row_func_arg_expr_tokens <-
-        func_arg_expr_tokens[func_arg_expr_tokens$id != non_row_func_arg_expr_tokens$id, ]
+      # If there are function arguments which are not df row variables then
+      # use thier ids to get the ones which are df row variables
+      if(nrow(non_row_func_arg_expr_tokens) != 0) {
+        row_func_arg_expr_tokens <-
+            func_arg_expr_tokens[func_arg_expr_tokens$id != non_row_func_arg_expr_tokens$id, ]
+      }
+      # Otherwise all the function arguments are df row parameters
+      else {
+        row_func_arg_expr_tokens <- func_arg_expr_tokens
+      }
 
       # Make the new name of the function which we will replace all
       # function call in this expression with
@@ -64,36 +73,72 @@ derived_field_get_pmml_str_for_var <- function(var_name, expr, tokens, comment_t
         "{gl_row_function$func_name}_{var_name}_{current_row_access_func_call_count}"
       )
 
+      # The next section creates the PMML string for the parameters
+      # for this row function
+      parameters_pmml_str <- ''
+      row_param_names <- gl_row_function$row_args
+      for(i in seq_len(length(gl_row_function$args))) {
+        if(gl_row_function$args[[i]] %in% row_param_names == FALSE) {
+          parameters_pmml_str <- paste(
+            parameters_pmml_str,
+            glue::glue('<ParameterField name="{gl_row_function$args[[i]]}" dataType="double"/>'),
+            sep = ""
+          )
+        }
+      }
+
       define_function_pmml_str <- ''
       define_function_pmml_str <- gsub(
         gl_row_function$func_name,
         new_func_name,
         gl_row_function$pmml_str
       )
+      # Keeps track of the df row variables which are passed in as arguments
+      # to the function
+      row_arg_names <- c()
       for (i in 1:length(gl_row_function$row_args)) {
         row_param_name <- gl_row_function$row_args[i]
         row_arg_name <-
           get_child_tokens_for_parent(row_func_arg_expr_tokens[i, ], tokens)[1, ]$text
+        row_arg_names <- c(row_arg_names, row_arg_name)
+
         define_function_pmml_str <- gsub(
           paste("\\{", row_param_name, "\\}", sep = ""),
-          globals_get_pmml_str_for_row_var_name(row_arg_name),
+          globals_get_map_values_pmml_str_with_fields_replaced(
+            row_arg_name
+          ),
           define_function_pmml_str
         )
       }
+
+      # Row variables whose column conditions use variables need those
+      # variables passed into the row function as parameters. This
+      # section adds the ParameterField strings for them to the
+      # DefineFunction pmml string
+      define_function_pmml_str <- gsub(
+        parameters_pmml_str,
+        paste(
+          parameters_pmml_str,
+          globals_get_parameter_field_strs_for_row_var(row_arg_names),
+          sep = ""
+        ),
+        define_function_pmml_str
+      )
+
       define_function_pmml_strs <<- paste(define_function_pmml_strs, define_function_pmml_str, sep = '')
 
       func_args_pmml_str <- ''
-      for(i in 1:nrow(non_row_func_arg_expr_tokens)) {
+      for(i in seq_len(nrow(non_row_func_arg_expr_tokens))) {
         func_args_pmml_str <- get_pmml_str_for_expr(non_row_func_arg_expr_tokens[i, ], tokens)
       }
 
-      return(glue::glue('<Apply function="{new_func_name}">{func_args_pmml_str}</Apply>'))
+      return(glue::glue('<Apply function="{new_func_name}">{func_args_pmml_str}{globals_get_col_symbol_field_refs_for_row_vars(row_arg_names)}</Apply>'))
     }
 
   get_pmml_str_for_row_access <- function(expr, tokens) {
     row_var_name <- dollar_op_get_var(expr, tokens)
 
-    return(dollar_op_get_pmml_node(expr, tokens, globals_get_pmml_str_for_row_var_name(row_var_name)))
+    return(dollar_op_get_pmml_node(expr, tokens, globals_get_pmml_str_for_row_var(row_var_name)))
   }
 
   get_pmml_str_for_if_expr <- function(cond_expr_to_block_exprs_mappings) {

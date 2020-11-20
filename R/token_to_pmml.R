@@ -109,8 +109,8 @@ get_pmml_string_for_function_arg_tokens <- function(function_arg_tokens) {
   return(parameters_pmml_string_for_function)
 }
 
-get_pmml_string_for_define_function <- function(function_name, function_args_tokens, function_body_pmml_string) {
-  return(glue::glue('<DefineFunction name="{function_name}">{get_pmml_string_for_function_arg_tokens(function_args_tokens)}{function_body_pmml_string}</DefineFunction>'))
+get_pmml_string_for_define_function <- function(function_name, function_args_tokens, function_body_pmml_string, additional_params = '') {
+  return(glue::glue('<DefineFunction name="{function_name}">{get_pmml_string_for_function_arg_tokens(function_args_tokens)}{additional_params}{function_body_pmml_string}</DefineFunction>'))
 }
 
 get_pmml_string_for_colon_token <- function(nested_pmml_string) {
