@@ -79,9 +79,18 @@ test_that("Accessing rows inside functions are correctly generated", {
 test_that("Accessing rows inside functions that takes only one parameter which is a row are correctly generated", {
   expected_pmml <- '<PMML>
 <LocalTransformations>
-<DefineFunction name="test_col_1">
-<ParameterField name="colAa"/>
+<DefineFunction name=\"test_col_1\">
+<ParameterField name=\"rowAa\" dataType=\"double\"/>
+<MapValues outputColumn=\"col3\">
+<FieldColumnPair column=\"col1\" field=\"rowAa\"/>
+<TableLocator location=\"taxonomy\" name=\"table\"/>
+</MapValues>
 </DefineFunction>
+<DerivedField name=\"col\" optype=\"continuous\">
+<Apply function=\"test_col_1\">
+<FieldRef field=\"a\"/>
+</Apply>
+</DerivedField>
 </LocalTransformations>
 </PMML>'
 
