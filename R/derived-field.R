@@ -75,12 +75,14 @@ derived_field_get_pmml_str_for_var <- function(var_name, expr, tokens, comment_t
 
       # The next section creates the PMML string for the parameters
       # for this row function
-      parameters_pmml_str <- ''
+      parameters_and_define_func_pmml_str <- glue::glue(
+        '<DefineFunction name="{new_func_name}">'
+      )
       row_param_names <- gl_row_function$row_args
       for(i in seq_len(length(gl_row_function$args))) {
         if(gl_row_function$args[[i]] %in% row_param_names == FALSE) {
-          parameters_pmml_str <- paste(
-            parameters_pmml_str,
+          parameters_and_define_func_pmml_str <- paste(
+            parameters_and_define_func_pmml_str,
             glue::glue('<ParameterField name="{gl_row_function$args[[i]]}" dataType="double"/>'),
             sep = ""
           )
@@ -116,9 +118,9 @@ derived_field_get_pmml_str_for_var <- function(var_name, expr, tokens, comment_t
       # section adds the ParameterField strings for them to the
       # DefineFunction pmml string
       define_function_pmml_str <- gsub(
-        parameters_pmml_str,
+        parameters_and_define_func_pmml_str,
         paste(
-          parameters_pmml_str,
+          parameters_and_define_func_pmml_str,
           globals_get_parameter_field_strs_for_row_var(row_arg_names),
           sep = ""
         ),
