@@ -1,7 +1,6 @@
 context("Testing accessing rows from data frames")
 
 test_that("Accessing rows outside functions are correctly generated", {
-  skip("")
   expected_pmml <- '<PMML>
 <LocalTransformations>
 <DerivedField name="col" optype="continuous">
@@ -19,7 +18,6 @@ test_that("Accessing rows outside functions are correctly generated", {
 })
 
 test_that("Accessing rows inside functions are correctly generated", {
-  skip("")
   expected_pmml <- '<PMML>
 <LocalTransformations>
 <DefineFunction name=\"test_col_1\">
