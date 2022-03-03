@@ -88,10 +88,8 @@ get_pmml_string_for_math_token <- function(math_token, nested_pmml_string) {
   return(glue::glue('<Apply function="{function_type}">{nested_pmml_string}</Apply>'))
 }
 
-get_pmml_string_for_symbol_function_call <- function(symbol_function_call_token, nested_pmml_string) {
-  function_type <- symbol_function_call_token$text
-
-  return(glue::glue('<Apply function="{function_type}">{nested_pmml_string}</Apply>'))
+get_pmml_string_for_symbol_function_call <- function(function_name, nested_pmml_string) {
+  return(glue::glue('<Apply function="{function_name}">{nested_pmml_string}</Apply>'))
 }
 
 get_pmml_string_for_function_arg_tokens <- function(function_arg_tokens) {

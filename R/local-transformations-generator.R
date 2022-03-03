@@ -1,9 +1,11 @@
 is_symbol_function_call_expr <- function(expr_token, tokens) {
   expr_tokens_whose_parent_is_the_current_token <- get_expr_tokens(get_tokens_with_parent(expr_token$id, tokens))
-
   if(nrow(expr_tokens_whose_parent_is_the_current_token) !=  0) {
     for(i in 1:nrow(expr_tokens_whose_parent_is_the_current_token)) {
-      if(get_tokens_with_parent(expr_tokens_whose_parent_is_the_current_token[1, 'id'], tokens)[1, 'token'] == SYMBOL_FUNCTION_CALL_TOKEN) {
+      # If any of the child tokens has a symbol function call token, then this
+      # expression is for a function call. This takes into account functions
+      # that are from packages.
+      if(SYMBOL_FUNCTION_CALL_TOKEN %in% get_tokens_with_parent(expr_tokens_whose_parent_is_the_current_token[1, 'id'], tokens)$token) {
         return(TRUE)
       }
     }
@@ -215,7 +217,7 @@ mutate_relevant_variables <- function(variable_name, tokens, mutated_variables) 
 
 # mutated_variables - Keeps track of all the variables and the number of times they have been mutated. Each row is the name of the variable and every row has one column called mutation iteration which is the number of times this variable has been mutated. When function is called for the first time should not be passed in
 # evaluated_variables - A HashMap that maps the variable name from each line of code to it's evaluated value
-get_pmml_string_from_r_file <- function(file_path, src_file=FALSE, mutated_variables = data.frame(), evaluated_variables = new.env(hash = TRUE)) {
+get_pmml_string_from_r_file <- function(file_path, src_file=FALSE, mutated_variables = data.frame(), evaluated_variables = new.env(hash = TRUE), out_to_file = TRUE) {
   if(src_file) {
     # Create directory where we store temperoray files during the addin operation
     dir.create(file.path(getwd(), 'temp'), showWarnings = FALSE)

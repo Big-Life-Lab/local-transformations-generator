@@ -54,17 +54,33 @@ expr_generic_get_pmml_str_for_expr <- function(
             return(get_pmml_str_for_func_call_row_access(expr, tokens))
           }
 
-          function_symbol_token <- get_tokens_with_parent(expr_tokens_whose_parent_is_the_current_expr[1, 'id'], tokens)[1, ]
+          # A function can be called from a package or not; Here we properly
+          # get the name of the function taking this into account.
+          function_name_tokens <- get_tokens_with_parent(expr_tokens_whose_parent_is_the_current_expr[1, 'id'], tokens)
+          function_name <- ""
+          # The function is from a package
+          if(function_name_tokens[1, "token"] == SYMBOL_PACKAGE) {
+            function_name <- paste(
+              function_name_tokens[1, "text"],
+              ".",
+              function_name_tokens[3, "text"],
+              sep = ""
+            )
+          }
+          # Normal function call
+          else {
+            function_name <- function_name_tokens[1, "text"]
+          }
 
           # Handle c functions by taking the arguments to the functions and concating the pmml string for each argument
-          if(function_symbol_token$text == 'c') {
+          if(function_name == 'c') {
             return(get_pmml_str_for_arg_exprs(function_call_get_function_arg_expr_tokens(expr, tokens), tokens))
-          } else if(function_symbol_token$text == 'exists') {
+          } else if(function_name == 'exists') {
             function_arg_expr_tokens <- function_call_get_function_arg_expr_tokens(expr, tokens)
             exits_arg <- format_constant_token_text(get_tokens_with_parent(function_arg_expr_tokens[1, 'id'], tokens)[1, ])
-            return(get_pmml_string_for_symbol_function_call(function_symbol_token, glue::glue('<FieldRef field="{exits_arg}"/>')))
+            return(get_pmml_string_for_symbol_function_call(function_name, glue::glue('<FieldRef field="{exits_arg}"/>')))
           }# If read.csv function call. Do nothing since we handle converting csv files to PMML tables at the beginning
-          else if(function_symbol_token$text == 'read.csv') {}
+          else if(function_name == 'read.csv') {}
           else {
             # Get the PMML string for the arguments passed into the function represented
             # by the function call expr in the func_call_expr arg
@@ -74,8 +90,8 @@ expr_generic_get_pmml_str_for_expr <- function(
             # If the function that is called has parameters can be defaulted, then check whether the user
             # passed them. If they were not passed then add NA's to the end
             # in the spots where the defaulted args need to go
-            if(globals_is_default_param_function(function_symbol_token$text)) {
-              default_param_function_info <- globals_get_default_param_function(function_symbol_token$text)
+            if(globals_is_default_param_function(function_name)) {
+              default_param_function_info <- globals_get_default_param_function(function_name)
               num_nas_to_add <- default_param_function_info$num_function_params - nrow(function_arg_expr_tokens)
               if(num_nas_to_add > 0) {
                 for(i in 1:num_nas_to_add) {
@@ -85,7 +101,7 @@ expr_generic_get_pmml_str_for_expr <- function(
               }
             }
 
-            return(get_pmml_string_for_symbol_function_call(function_symbol_token, function_args_symbol_tokens_pmml_string))
+            return(get_pmml_string_for_symbol_function_call(function_name, function_args_symbol_tokens_pmml_string))
           }
         } else {
           for(i in 1:nrow(expr_tokens_whose_parent_is_the_current_expr)) {
