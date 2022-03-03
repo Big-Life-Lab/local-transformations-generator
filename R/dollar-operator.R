@@ -24,8 +24,6 @@ dollar_op_get_var <- function(expr, tokens) {
     get_child_tokens_for_parent(expr, tokens)[1, ], tokens)[1, ]
 
   if(is_symbol_token(symbol_token) == FALSE) {
-    print(expr)
-    print(tokens)
     stop("Trying to get variable for $ operator but this is not a column access")
   }
 
