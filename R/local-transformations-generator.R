@@ -248,7 +248,9 @@ get_pmml_string_from_r_file <- function(file_path, src_file=FALSE, mutated_varia
       tokens_with_comments
     )
 
-    if(does_tokens_have_source_function_call(tokens_for_current_parent_index) == TRUE) {
+    # If this is a call to initialize a library then skip it
+    if(nrow(get_symbol_function_calls_with_text('library', tokens)) == 1) {}
+    else if(does_tokens_have_source_function_call(tokens_for_current_parent_index) == TRUE) {
       source_return_values <- get_pmml_string_from_source_function_call_tokens(tokens_for_current_parent_index, mutated_variables, evaluated_variables)
 
       taxonomy <- paste(taxonomy, source_return_values$taxonomy, sep='')
