@@ -103,7 +103,6 @@ get_pmml_string_from_source_function_call_tokens <- function(source_function_cal
   source_function_call_arg_expr_token <- get_tokens_with_parent(source_function_call_tokens[1, ]$id, source_function_call_tokens)[3, ]
   source_function_call_arg_code_string <- getParseText(source_function_call_tokens, source_function_call_arg_expr_token$id)
   source_file_Path <- eval(parse(text=source_function_call_arg_code_string))
-
   return(get_pmml_string_from_r_file(source_file_Path, FALSE, mutated_variables, evaluated_variables))
 }
 
@@ -249,7 +248,7 @@ get_pmml_string_from_r_file <- function(file_path, src_file=FALSE, mutated_varia
     )
 
     # If this is a call to initialize a library then skip it
-    if(nrow(get_symbol_function_calls_with_text('library', tokens)) == 1) {}
+    if(nrow(get_symbol_function_calls_with_text('library', tokens_for_current_parent_index)) == 1) {}
     else if(does_tokens_have_source_function_call(tokens_for_current_parent_index) == TRUE) {
       source_return_values <- get_pmml_string_from_source_function_call_tokens(tokens_for_current_parent_index, mutated_variables, evaluated_variables)
 
