@@ -99,11 +99,11 @@ get_index_of_next_zero_parent <- function(parse_data) {
   return(nrow(parse_data))
 }
 
-get_pmml_string_from_source_function_call_tokens <- function(source_function_call_tokens, mutated_variables, evaluated_variables) {
+get_pmml_string_from_source_function_call_tokens <- function(source_function_call_tokens, mutated_variables, evaluated_variables, log = TRUE) {
   source_function_call_arg_expr_token <- get_tokens_with_parent(source_function_call_tokens[1, ]$id, source_function_call_tokens)[3, ]
   source_function_call_arg_code_string <- getParseText(source_function_call_tokens, source_function_call_arg_expr_token$id)
   source_file_Path <- eval(parse(text=source_function_call_arg_code_string))
-  return(get_pmml_string_from_r_file(source_file_Path, FALSE, mutated_variables, evaluated_variables))
+  return(get_pmml_string_from_r_file(source_file_Path, FALSE, mutated_variables, evaluated_variables, log = log))
 }
 
 # Generates the PMML table string for the data frame in the data_frame argument whose name is the table_name argument
@@ -216,7 +216,7 @@ mutate_relevant_variables <- function(variable_name, tokens, mutated_variables) 
 
 # mutated_variables - Keeps track of all the variables and the number of times they have been mutated. Each row is the name of the variable and every row has one column called mutation iteration which is the number of times this variable has been mutated. When function is called for the first time should not be passed in
 # evaluated_variables - A HashMap that maps the variable name from each line of code to it's evaluated value
-get_pmml_string_from_r_file <- function(file_path, src_file=FALSE, mutated_variables = data.frame(), evaluated_variables = new.env(hash = TRUE), out_to_file = TRUE) {
+get_pmml_string_from_r_file <- function(file_path, src_file=FALSE, mutated_variables = data.frame(), evaluated_variables = new.env(hash = TRUE), out_to_file = TRUE, log = TRUE) {
   if(src_file) {
     # Create directory where we store temperoray files during the addin operation
     dir.create(file.path(getwd(), 'temp'), showWarnings = FALSE)
@@ -250,7 +250,7 @@ get_pmml_string_from_r_file <- function(file_path, src_file=FALSE, mutated_varia
     # If this is a call to initialize a library then skip it
     if(nrow(get_symbol_function_calls_with_text('library', tokens_for_current_parent_index)) == 1) {}
     else if(does_tokens_have_source_function_call(tokens_for_current_parent_index) == TRUE) {
-      source_return_values <- get_pmml_string_from_source_function_call_tokens(tokens_for_current_parent_index, mutated_variables, evaluated_variables)
+      source_return_values <- get_pmml_string_from_source_function_call_tokens(tokens_for_current_parent_index, mutated_variables, evaluated_variables, log = log)
 
       taxonomy <- paste(taxonomy, source_return_values$taxonomy, sep='')
       local_transformation_string <- paste(local_transformation_string, source_return_values$local_transformation_string, sep='')
@@ -277,7 +277,9 @@ get_pmml_string_from_r_file <- function(file_path, src_file=FALSE, mutated_varia
       for(i in 1:length(derived_field_names)) {
         variable_name <- derived_field_names[i]
         mutated_variable_name <- get_mutated_variable_name(variable_name, mutated_variables[variable_name, 'mutationIteration'])
-        print(glue::glue("Parsing variable {mutated_variable_name}"))
+        if(log) {
+          print(glue::glue("Parsing variable {mutated_variable_name}"))
+        }
 
         if(mutated_variables[variable_name, 'mutationIteration'] != 0) {
           for(obj in ls()) {
@@ -305,30 +307,19 @@ get_pmml_string_from_r_file <- function(file_path, src_file=FALSE, mutated_varia
           assign_expr_token <- get_token_with_assignment_code(tokens_for_current_parent_index)
           child_tokens <- get_child_tokens_for_parent(assign_expr_token, tokens_for_current_parent_index)
           possible_row_var <- get_child_tokens_for_parent(child_tokens[1, ], tokens_for_current_parent_index)[1, ]
-          # If this is an expression to get the row from a data frame and store it in a variable for eg. table[col1 == 'val' & col2 == 'val2', ]
-          # We will add it to the table of row accesses and use it when we encounter an expression that accesses the column from this row
-          if(dollar_op_is_expr(assign_expr_token, tokens_for_current_parent_index) == FALSE &
-             data_frame_is_expr(assign_expr_token, tokens_for_current_parent_index) & data_frame_is_wildcard_expr(assign_expr_token, tokens_for_current_parent_index)) {
-            col_symbol_conditions <- c()
-            data_frame_iterate_column_conditions(assign_expr_token, tokens_for_current_parent_index, function(column_name, field_or_constant_token) {
-              if(is_symbol_token(field_or_constant_token)) {
-                col_symbol_conditions <<- c(col_symbol_conditions, field_or_constant_token$text)
-              }
-            })
-            globals_add_row_var(
-              mutated_variable_name,
-              col_symbol_conditions,
-              data_frame_get_pmml_node(assign_expr_token, tokens_for_current_parent_index)
-            )
-          }
-          else {
-            pmml_str_for_var <- derived_field_get_pmml_str_for_var(
-              mutated_variable_name, tokens_for_current_parent_index[1, ], tokens_for_current_parent_index, comments_for_current_expr, evaluated_variables)
-            local_transformation_string <- paste(local_transformation_string, pmml_str_for_var, sep='')
-          }
+          pmml_str_for_var <- derived_field_get_pmml_str_for_var(
+            mutated_variable_name,
+            tokens_for_current_parent_index[1, ],
+            tokens_for_current_parent_index,
+            comments_for_current_expr,
+            evaluated_variables
+          )
+          local_transformation_string <- paste(local_transformation_string, pmml_str_for_var, sep='')
         }
 
-        print(glue::glue("Done parsing variable {mutated_variable_name}"))
+        if(log) {
+          print(glue::glue("Done parsing variable {mutated_variable_name}"))
+        }
       }
     }
 
@@ -348,7 +339,9 @@ get_pmml_string_from_r_file <- function(file_path, src_file=FALSE, mutated_varia
     file.remove(file.path(getwd(), 'temp/temp.RData'))
 
     remove("gl_row_functions", envir = .GlobalEnv)
-    remove("gl_default_param_functions", envir = .GlobalEnv)
+    if(exists("gl_default_param_functions")) {
+      remove("gl_default_param_functions", envir = .GlobalEnv)
+    }
     remove("row_vars", envir = .GlobalEnv)
 
     return(paste('<PMML>', taxonomy, '<LocalTransformations>', local_transformation_string, '</LocalTransformations></PMML>', sep = ''))

@@ -137,10 +137,16 @@ derived_field_get_pmml_str_for_var <- function(var_name, expr, tokens, comment_t
       return(glue::glue('<Apply function="{new_func_name}">{func_args_pmml_str}{globals_get_col_symbol_field_refs_for_row_vars(row_arg_names)}</Apply>'))
     }
 
-  get_pmml_str_for_row_access <- function(expr, tokens) {
+  get_pmml_str_for_row_access <- function(expr, tokens, scope_variables) {
     row_var_name <- dollar_op_get_var(expr, tokens)
-
-    return(dollar_op_get_pmml_node(expr, tokens, globals_get_pmml_str_for_row_var(row_var_name)))
+    inner_text <- ""
+    if(row_var_name %in% scope_variables) {
+      inner_text <- glue::glue('<TableLocator location="local" name="{row_var_name}" />')
+    }
+    else {
+      inner_text <- glue::glue('<TableLocator location="taxonomy" name="{row_var_name}" />')
+    }
+    return(dollar_op_get_pmml_node(expr, tokens, inner_text))
   }
 
   get_pmml_str_for_if_expr <- function(cond_expr_to_block_exprs_mappings) {
@@ -206,7 +212,8 @@ derived_field_get_pmml_str_for_var <- function(var_name, expr, tokens, comment_t
       glue::glue('<DerivedField name="{var_name}" optype="continuous">{transformations_pmml_str}</DerivedField>'),
       sep = ''
     ))
-  } else {
+  }
+  else {
     child_tokens <- get_child_tokens_for_parent(expr, tokens)
 
     var_name_token <- get_child_tokens_for_parent(child_tokens[1, ], tokens)[1, ]
@@ -219,7 +226,7 @@ derived_field_get_pmml_str_for_var <- function(var_name, expr, tokens, comment_t
 
     tokenWithAssignmentCode <- child_tokens[3, ]
 
-    transformations_pmml_str <- get_pmml_str_for_token(tokenWithAssignmentCode, tokens, comment_tokens, evaluated_variables)
+    transformations_pmml_str <- get_pmml_str_for_token(tokenWithAssignmentCode, tokens, comment_tokens, evaluated_variables, c())
     return(paste(
       define_function_pmml_strs,
       glue::glue('<DerivedField name="{var_name}" optype="continuous">{transformations_pmml_str}</DerivedField>'),

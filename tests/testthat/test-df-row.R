@@ -3,10 +3,15 @@ context("Testing accessing rows from data frames")
 test_that("Accessing rows outside functions are correctly generated", {
   expected_pmml <- '<PMML>
 <LocalTransformations>
-<DerivedField name="col" optype="continuous">
-<MapValues outputColumn="col1">
+<DerivedField name="row" optype="continuous">
+<MapValues>
 <FieldColumnPair column="col1" constant="val"/>
 <TableLocator location="taxonomy" name="table"/>
+</MapValues>
+</DerivedField>
+<DerivedField name="col" optype="continuous">
+<MapValues outputColumn="col1">
+<TableLocator location="taxonomy" name="row" />
 </MapValues>
 </DerivedField>
 </LocalTransformations>
@@ -20,51 +25,51 @@ test_that("Accessing rows outside functions are correctly generated", {
 test_that("Accessing rows inside functions are correctly generated", {
   expected_pmml <- '<PMML>
 <LocalTransformations>
-<DefineFunction name=\"test_col_1\">
-<ParameterField name=\"const\" dataType=\"double\"/>
-<ParameterField name=\"rowAa\" dataType=\"double\"/>
-<Apply function=\"+\">
-<Apply function=\"+\">
-<MapValues outputColumn=\"col3\">
-<FieldColumnPair column=\"col1\" field=\"rowAa\"/>
-<TableLocator location=\"taxonomy\" name=\"table\"/>
+<DefineFunction name="test">
+<ParameterField name="row" dataType="double"/>
+<ParameterField name="const" dataType="double"/>
+<ParameterField name="row_two" dataType="double"/>
+<Apply function="+">
+<Apply function="+">
+<MapValues outputColumn="col3">
+<TableLocator location="local" name="row" />
 </MapValues>
-<FieldRef field=\"const\"/>
+<FieldRef field="const"/>
 </Apply>
-<MapValues outputColumn=\"col4\">
-<FieldColumnPair column=\"col2\" constant=\"val1\"/>
-<TableLocator location=\"taxonomy\" name=\"table\"/>
-</MapValues>
-</Apply>
-</DefineFunction>
-<DefineFunction name=\"test_col_2\">
-<ParameterField name=\"const\" dataType=\"double\"/>
-<ParameterField name=\"rowAa\" dataType=\"double\"/>
-<ParameterField name=\"row_threeAb\" dataType=\"double\"/>
-<Apply function=\"+\">
-<Apply function=\"+\">
-<MapValues outputColumn=\"col3\">
-<FieldColumnPair column=\"col1\" field=\"rowAa\"/>
-<TableLocator location=\"taxonomy\" name=\"table\"/>
-</MapValues>
-<FieldRef field=\"const\"/>
-</Apply>
-<MapValues outputColumn=\"col4\">
-<FieldColumnPair column=\"col3\" field=\"row_threeAb\"/>
-<TableLocator location=\"taxonomy\" name=\"table\"/>
+<MapValues outputColumn="col4">
+<TableLocator location="local" name="row_two" />
 </MapValues>
 </Apply>
 </DefineFunction>
-<DerivedField name=\"col\" optype=\"continuous\">
-<Apply function=\"+\">
-<Apply function=\"test_col_1\">
-<Constant dataType=\"double\">1</Constant>
-<FieldRef field=\"a\"/>
+<DerivedField name="row" optype="continuous">
+<MapValues>
+<FieldColumnPair column="col1" field="a"/>
+<TableLocator location="taxonomy" name="table"/>
+</MapValues>
+</DerivedField>
+<DerivedField name="row_two" optype="continuous">
+<MapValues>
+<FieldColumnPair column="col2" constant="val1"/>
+<TableLocator location="taxonomy" name="table"/>
+</MapValues>
+</DerivedField>
+<DerivedField name="row_three" optype="continuous">
+<MapValues>
+<FieldColumnPair column="col3" field="b"/>
+<TableLocator location="taxonomy" name="table"/>
+</MapValues>
+</DerivedField>
+<DerivedField name="col" optype="continuous">
+<Apply function="+">
+<Apply function="test">
+<FieldRef field="row"/>
+<Constant dataType="double">1</Constant>
+<FieldRef field="row_two"/>
 </Apply>
-<Apply function=\"test_col_2\">
-<Constant dataType=\"double\">1</Constant>
-<FieldRef field=\"a\"/>
-<FieldRef field=\"b\"/>
+<Apply function="test">
+<FieldRef field="row"/>
+<Constant dataType="double">1</Constant>
+<FieldRef field="row_three"/>
 </Apply>
 </Apply>
 </DerivedField>
@@ -79,16 +84,21 @@ test_that("Accessing rows inside functions are correctly generated", {
 test_that("Accessing rows inside functions that takes only one parameter which is a row are correctly generated", {
   expected_pmml <- '<PMML>
 <LocalTransformations>
-<DefineFunction name=\"test_col_1\">
-<ParameterField name=\"rowAa\" dataType=\"double\"/>
-<MapValues outputColumn=\"col3\">
-<FieldColumnPair column=\"col1\" field=\"rowAa\"/>
-<TableLocator location=\"taxonomy\" name=\"table\"/>
+<DefineFunction name="test">
+<ParameterField name="row" dataType="double"/>
+<MapValues outputColumn="col3">
+<TableLocator location="local" name="row" />
 </MapValues>
 </DefineFunction>
-<DerivedField name=\"col\" optype=\"continuous\">
-<Apply function=\"test_col_1\">
-<FieldRef field=\"a\"/>
+<DerivedField name="row" optype="continuous">
+<MapValues>
+<FieldColumnPair column="col1" field="a"/>
+<TableLocator location="taxonomy" name="table"/>
+</MapValues>
+</DerivedField>
+<DerivedField name="col" optype="continuous">
+<Apply function="test">
+<FieldRef field="row"/>
 </Apply>
 </DerivedField>
 </LocalTransformations>

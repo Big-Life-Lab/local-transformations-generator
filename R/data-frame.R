@@ -39,20 +39,23 @@ data_frame_is_row_access <- function(expr, tokens) {
   return(dollar_op_is_expr(expr, tokens) == TRUE & data_frame_is_col_access(expr, tokens) == FALSE)
 }
 
-# THis parses data frame access code into PMML.
+# This parses data frame access code into PMML.
 # table["column1", "output"]
 # table[table$sex == "male", ]
-data_frame_get_pmml_node <- function(expr, tokens) {
+data_frame_get_pmml_node <- function(expr, tokens, scope_variables) {
   child_tokens <- get_child_tokens_for_parent(expr, tokens)
   expr_child_tokens <- get_expr_tokens(child_tokens)
   table_name <- data_frame_get_table_name(expr, tokens)
+  location <- ifelse(table_name %in% scope_variables, "local", "taxonomy")
 
+  # A wildcard data frame query is when the column names are not specified inside
+  # the [], for example table[1, ]
   if(data_frame_is_wildcard_expr(expr, tokens) == FALSE) {
     output_column_name <- format_symbol_name(get_child_tokens_for_parent(child_tokens[5, ], tokens)[1, ])
     index_column_value <- format_symbol_name(get_child_tokens_for_parent(child_tokens[3, ], tokens)[1, ])
     field_column_pair_string <- glue::glue('<FieldColumnPair column="index" constant="{index_column_value}"/>')
 
-    return(glue::glue('<MapValues outputColumn="{output_column_name}">{field_column_pair_string}<TableLocator location="taxonomy" name="{table_name}"/></MapValues>'))
+    return(glue::glue('<MapValues outputColumn="{output_column_name}">{field_column_pair_string}<TableLocator location="{location}" name="{table_name}"/></MapValues>'))
   } else {
     # The string which at the end of the following loop will have all the FieldColumnPairs
     field_column_pairs <- ''
@@ -67,7 +70,7 @@ data_frame_get_pmml_node <- function(expr, tokens) {
       field_column_pairs <<- paste(field_column_pairs, glue::glue('<FieldColumnPair {column_string} {field_or_constant_string}/>'), sep = "")
     })
 
-    return(paste(field_column_pairs, glue::glue('<TableLocator location="taxonomy" name="{table_name}"/>'), sep = ''))
+    return(glue::glue('{field_column_pairs}<TableLocator location="{location}" name="{table_name}"/>'))
   }
 }
 
@@ -92,7 +95,7 @@ data_frame_get_table_name <- function(expr, tokens) {
   }
 }
 
-# For the data frame expression token specified in the expr parameter 
+# For the data frame expression token specified in the expr parameter
 # it will call the passed iterator function for each pair of search
 # condition passing in the column name as the first argument and the
 # field or constant to match to the column value as the second argument
@@ -117,4 +120,10 @@ data_frame_iterate_column_conditions <- function(expr, tokens, iterator) {
       iterator(column, field_or_constant)
     }
   }
+}
+
+get_table_expression <- function(expr, tokens) {
+  child_tokens <- get_child_tokens_for_parent(expr, tokens)
+  table_expr <- child_tokens[child_tokens$token == EXPR_TOKEN, ][1, ]
+  return(table_expr)
 }

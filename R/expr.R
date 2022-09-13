@@ -2,7 +2,7 @@ expr_generic_get_pmml_str_for_expr <- function(
   get_pmml_str_for_row_access,
   get_pmml_str_for_func_call_row_access,
   get_pmml_str_for_if_expr) {
-  get_pmml_str_for_expr <- function(expr, tokens) {
+  get_pmml_str_for_expr <- function(expr, tokens, scope_variables) {
     tokens_whose_parent_is_the_current_expr <- get_tokens_with_parent(expr$id, tokens)
     tokens_whose_parent_is_the_current_expr_has_one_row <- (nrow(tokens_whose_parent_is_the_current_expr) != 0)
 
@@ -25,7 +25,7 @@ expr_generic_get_pmml_str_for_expr <- function(
       get_pmml_str_for_if_expr(cond_expr_to_block_exprs_mappings)
     }
     else if(data_frame_is_row_access(expr, tokens)) {
-      return(get_pmml_str_for_row_access(expr, tokens))
+      return(get_pmml_str_for_row_access(expr, tokens, scope_variables))
     }
     # If this is an expression to access the column from a row and store it in a variable for eg. var1 <- row$col1
     else if(dollar_op_is_get_col_from_row_expr(expr, tokens)) {
@@ -36,11 +36,15 @@ expr_generic_get_pmml_str_for_expr <- function(
     else if(dollar_op_is_expr(expr, tokens)) {
       if(data_frame_is_expr(tokens_whose_parent_is_the_current_expr[1, ], tokens)) {
         return(dollar_op_get_pmml_node(
-          expr, tokens, data_frame_get_pmml_node(tokens_whose_parent_is_the_current_expr[1, ], tokens)))
+          expr, tokens, data_frame_get_pmml_node(tokens_whose_parent_is_the_current_expr[1, ], tokens, scope_variables)))
       }
     }
     else if(data_frame_is_expr(expr, tokens)) {
-      return(data_frame_get_pmml_node(expr, tokens))
+      data_frame_node <- data_frame_get_pmml_node(expr, tokens, scope_variables)
+      if(data_frame_is_wildcard_expr(expr, tokens)) {
+        return(glue::glue('<MapValues>{data_frame_node}</MapValues>'))
+      }
+      return(data_frame_node)
     }
     else {
       expr_tokens_whose_parent_is_the_current_expr <- get_expr_tokens(tokens_whose_parent_is_the_current_expr)
@@ -107,7 +111,7 @@ expr_generic_get_pmml_str_for_expr <- function(
           for(i in 1:nrow(expr_tokens_whose_parent_is_the_current_expr)) {
             pmml_string_for_expr_tokens <- paste(
               pmml_string_for_expr_tokens,
-              get_pmml_str_for_expr(expr_tokens_whose_parent_is_the_current_expr[i, ], tokens),
+              get_pmml_str_for_expr(expr_tokens_whose_parent_is_the_current_expr[i, ], tokens, scope_variables),
               sep=''
             )
           }

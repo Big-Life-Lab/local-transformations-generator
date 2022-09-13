@@ -26,7 +26,6 @@ define_function_get_pmml_string <- function(tokens, function_name) {
   top_level_function_body_expr_tokens <- get_expr_tokens(get_child_tokens_for_parent(function_body_expr_token, tokens))
 
   row_args <- define_function_get_row_args(top_level_function_body_expr_tokens, function_param_name_tokens$text, tokens)
-  non_row_function_arg_tokens <- function_param_name_tokens[function_param_name_tokens$text %in% row_args == FALSE, ]
 
   pmml_function_string <- ''
 
@@ -45,13 +44,26 @@ define_function_get_pmml_string <- function(tokens, function_name) {
     }
   }
 
+  # names of variables that are in the local scope of this function
+  function_scope_variables <- c(function_param_name_tokens$text)
   for(i in 1:nrow(top_level_function_body_expr_tokens)) {
     test_unsupported_exprs(top_level_function_body_expr_tokens[i, ], tokens)
 
     if(i != nrow(top_level_function_body_expr_tokens)) {
       inner_func_expr <- top_level_function_body_expr_tokens[i, ]
       inner_func_name <- define_function_get_inner_func_name(inner_func_expr, tokens, function_name)
-      pmml_function_string <- paste(pmml_function_string, get_pmml_string_for_expr_token_within_function(inner_func_name, top_level_function_body_expr_tokens[i, ], non_row_function_arg_tokens, function_name, defaulted_args, tokens), sep='')
+      pmml_function_string <- paste(
+        pmml_function_string,
+        get_pmml_string_for_expr_token_within_function(
+          inner_func_name,
+          top_level_function_body_expr_tokens[i, ],
+          function_param_name_tokens,
+          function_name,
+          defaulted_args,
+          tokens
+        ),
+        sep=''
+      )
     }
     #It's the last expression so it has to be a function return call
     else {
@@ -75,11 +87,18 @@ define_function_get_pmml_string <- function(tokens, function_name) {
         }
 
         #Convert the expression to it's PMML string
-        pmml_string_for_return_arg_expr_token <- define_function_get_pmml_str_for_expr(return_arg_expr_token, get_descendants_of_token(return_arg_expr_token, tokens), function_name, function_param_name_tokens, TRUE)
+        pmml_string_for_return_arg_expr_token <- define_function_get_pmml_str_for_expr(
+          return_arg_expr_token,
+          get_descendants_of_token(return_arg_expr_token, tokens),
+          function_name,
+          function_param_name_tokens,
+          TRUE,
+          function_scope_variables
+        )
       }
 
       symbols_within_return_arg_expr_which_are_not_function_arguments <- define_function_get_symbols_to_convert_to_func_calls(
-        non_row_function_arg_tokens$text,
+        function_param_name_tokens$text,
         return_arg_expr_token,
         tokens
       )
@@ -91,7 +110,7 @@ define_function_get_pmml_string <- function(tokens, function_name) {
         for(j in 1:nrow(symbols_within_return_arg_expr_which_are_not_function_arguments)) {
           # 1.
           r_function_name_for_current_symbol <- glue::glue('{function_name}_{symbols_within_return_arg_expr_which_are_not_function_arguments[j, "text"]}')
-          r_function_args <- get_r_arguments_into_function_string(non_row_function_arg_tokens)
+          r_function_args <- get_r_arguments_into_function_string(function_param_name_tokens)
           r_code <- glue::glue('{r_function_name_for_current_symbol}({r_function_args})')
           tokens_for_r_Code <- getParseData(parse(text = r_code, keep.source = TRUE))
           pmml_string_for_r_code <- define_function_get_pmml_str_for_expr(tokens_for_r_Code[1, ], tokens_for_r_Code, function_name, function_param_name_tokens, TRUE)
@@ -110,10 +129,18 @@ define_function_get_pmml_string <- function(tokens, function_name) {
         }
       }
 
-      pmml_string_for_return_arg_expr_token <- get_pmml_string_with_defaulted_args_correctly_set(defaulted_args, non_row_function_arg_tokens, pmml_string_for_return_arg_expr_token)
+      pmml_string_for_return_arg_expr_token <- get_pmml_string_with_defaulted_args_correctly_set(
+        defaulted_args,
+        function_param_name_tokens,
+        pmml_string_for_return_arg_expr_token
+      )
 
       #Make the DefineFunction PMML string
-      pmml_define_function_string <- get_pmml_string_for_define_function(function_name, non_row_function_arg_tokens, pmml_string_for_return_arg_expr_token)
+      pmml_define_function_string <- get_pmml_string_for_define_function(
+        function_name,
+        function_param_name_tokens,
+        pmml_string_for_return_arg_expr_token
+      )
 
       #Add it to the pmml_function_string
       pmml_function_string <- paste(pmml_function_string, pmml_define_function_string, sep='')
@@ -124,19 +151,7 @@ define_function_get_pmml_string <- function(tokens, function_name) {
     globals_add_default_param_function(function_name, nrow(function_param_name_tokens), nrow(defaulted_args))
   }
 
-  if(length(row_args) == 0) {
-    return(pmml_function_string)
-  } else {
-    row_function <- list(
-      func_name = function_name,
-      args = function_param_name_tokens$text,
-      row_args = row_args,
-      pmml_str = pmml_function_string
-    )
-    gl_row_functions[[length(gl_row_functions) + 1]] <<- row_function
-
-    return('')
-  }
+  return(pmml_function_string)
 }
 
 # Currently unsupported expressions within functions
@@ -151,9 +166,22 @@ test_unsupported_exprs <- function(top_level_expr, tokens) {
   }
 }
 
-get_pmml_str_for_row_access <- function(expr, tokens) {
-  row_var_name <- dollar_op_get_var(expr, tokens)
-  inner_text <- paste("{", row_var_name, "}", sep = "")
+get_pmml_str_for_row_access <- function(expr, tokens, scope_variables) {
+  inner_text <- NULL
+  table_expr <- get_table_expression(expr, tokens)
+  # Get the expression for the data frame that holds the output column
+  if(is_symbol_function_call_expr(table_expr, tokens)) {
+    inner_text <- glue::glue("<TableLocator>{define_function_get_pmml_str_for_expr(table_expr, tokens, '', data.frame(), FALSE)}</TableLocator>")
+  }
+  else {
+    row_var_name <- dollar_op_get_var(expr, tokens)
+    if(row_var_name %in% scope_variables) {
+      inner_text <- glue::glue('<TableLocator location="local" name="{row_var_name}" />')
+    } else {
+      inner_text <- glue::glue('<TableLocator location="taxonomy" name="{row_var_name}" />')
+    }
+  }
+
   return(dollar_op_get_pmml_node(expr, tokens, inner_text))
 }
 
@@ -298,7 +326,14 @@ get_pmml_str_for_if_expr <- function(cond_expr_to_block_exprs_mappings, tokens, 
   }
 }
 
-define_function_get_pmml_str_for_expr <- function(expr, tokens, orig_func_name, orig_func_param_tokens, is_last_expr) {
+define_function_get_pmml_str_for_expr <- function(
+    expr,
+    tokens,
+    orig_func_name,
+    orig_func_param_tokens,
+    is_last_expr,
+    function_scope_variables
+  ) {
   return(
     expr_generic_get_pmml_str_for_expr(
       get_pmml_str_for_row_access,
@@ -306,7 +341,7 @@ define_function_get_pmml_str_for_expr <- function(expr, tokens, orig_func_name, 
       function(cond_expr_id_to_block_expr_ids_mappings) {
         return(get_pmml_str_for_if_expr(cond_expr_id_to_block_expr_ids_mappings, tokens, orig_func_name, orig_func_param_tokens, is_last_expr))
       }
-    )(expr, tokens)
+    )(expr, tokens, function_scope_variables)
   )
 }
 
