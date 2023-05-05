@@ -1,0 +1,17 @@
+project:
+  type: website
+  output-dir: ../dist
+
+website:
+  title: R to PMML Docs
+  sidebar:
+    style: docked
+    search: true
+    contents:
+      - section: Specifications
+        contents:
+          - tables.qmd
+format:
+  html:
+    theme: cosmo
+    toc: true
