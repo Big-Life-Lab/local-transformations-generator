@@ -1,0 +1,327 @@
+---
+title: "Tables"
+format: html
+editor: visual
+---
+
+# Tables
+
+This document will go over the specifications for converting R data frames
+and their associated operations into PMML.
+
+## Context
+
+Certain algorithms requires the use of tables to store reference information
+that is needed during the calculation. For example, the sodium plus algorithm
+has a reference table of sodium per serving for different food groups stored
+in a CSV file; the diet calculator has multiple lookup tables that contain
+the different equation values to use for the different food groups.
+
+These tables are imported into the R code, filtered on different conditions,
+and finally a value selected from a column to use in the calculation. All of
+this information needs to be included in the PMML file so that the algorithm
+can be full represented in it as well as allowing any PMML engine to score
+the algorithm.
+
+## R Tables
+
+This section will go over the different pieces of R code that involve table
+operations and the PMML XML they should be converted to.
+
+### Importing a table
+
+R code can be used to import a CSV file into a table. In R, a table is
+represented using a structure called data frame. In R, data frames can either
+be created by using the data.frame constructor or by importing a tabular file
+like a CSV into a data frame. Regardless of the way a data frame is created,
+the PMML nodes, `Taxonomy`, `InlineTable`, and `row` are used to represent
+the data within the data frame.
+
+The `Taxonomy` node defines the name of the table. The `name` attribute should
+be set to the name of the variable.
+
+The `InlineTable` node contains the table contents within it. The only children
+allowed are `row` nodes.
+
+The `row` nodes are used to represent each row in the table. Each child node
+represents a column in that row. The child node name has the column name and
+the contents has the column value.
+
+For example, for the following data frame code,
+
+```{r}
+table <- data.frame(
+  a = c(1,2,3),
+  b = c(4,5,6)
+)
+```
+
+the following PMML string should be generated,
+
+```{xml}
+<Taxonomy name="table">
+  <InlineTable>
+    <row>
+      <a>1</a>
+      <b>4</b>
+    </row>
+    <row>
+      <a>2</a>
+      <b>5</b>
+    </row>
+    <row>
+      <a>3</a>
+      <b>6</b>
+    </row>
+  </InlineTable>
+</Taxonomy>
+```
+
+One issue is deciding when to convert a table variable to a `Taxonomy` node
+and when to use a `DerivedField` node.
+
+Usually, a `Taxonomy` node is used when tables are created for the first time.
+Currently, we would only support the following table creation expression:
+
+1. A table created by using the `read.csv` function
+
+In all the other cases, where a table variable is used to create a new table
+variable, we would create a `DerivedField` element as shown in the next section.
+
+## Filtering & Selecting
+
+R allows the user to filter the rows in a table based on a set of conditions
+as well as select the values from a column(s).
+
+### Filtering
+
+Example R code to filter rows from a table can be seen below,
+
+```{r}
+filtered_table <- table[table$a == 1, ]
+```
+
+The condition within the above R code says to only keep rows whose `a` column
+has a value of `1`. 
+
+Although this is a simple condition, R allows you to define complex conditions, 
+essentially any statement that evaluates to a boolean can be used as the filter 
+logic. However, due to limitations with PMML, the conversion will only allow
+conditions of the form, **equality_condition_1 & equality_condition_2 & .. & equality_condition_n**.
+In English, only equality conditions are allowed, and if there are multiple
+equality conditions, they have to all be seperated by an **AND**.
+
+For example, the following filter condition is allowed,
+
+```{r}
+b <- 4
+filtered_table_1 <- table[table$a == 1 & table$b == b, ]
+```
+
+There are two equality conditions and they are both seperated by an AND.
+
+The following condition is not allowed,
+
+```{r}
+filtered_table_2 <- table[table$a != 1 | table$b != 4, ]
+```
+
+The two sub conditions not equalities (they are in-equalities) and they are
+not seperated by an AND (they are seperated by an OR).
+
+Converting an R filter statement to PMML uses the following elements, 
+
+* `MapValues`: whose children contains the equality conditions
+* `FieldColumnPair`: which encapsulates the equality condition. The `column`
+attribute contains the name of column part of the filter, in other words the
+left-hand side of the equality. 
+Depending on what the right-hand side of the
+equality is, either the `constant` or `field` attribute will need to be set.
+If the right-hand side is a constant then the former is used and if it is a
+variable the latter is used.
+
+For example. for the two valid filter statements above, the equivalent
+PMML is shown below,
+
+```{xml}
+<DerivedField name="filtered_table">
+  <MapValues>
+    <FieldColumnPair column="a" constant="1" />
+  <MapValues>
+</DerivedField>
+```
+
+```{xml}
+<DerivedField name="b">
+  <Constant>4</Constant>
+</DerivedField>
+<DerivedField name="filtered_table_1">
+  <MapValues>
+    <FieldColumnPair column="a" constant="1" />
+    <FieldColumnPair column="b" field="b" />
+  <MapValues>
+</DerivedField>
+```
+
+### Selecting
+
+R code can also be used to select values from a table's columns and use them
+in another expression. For example, the code below will select the values from
+the `a` column,
+
+```{r}
+a <- filtered_table$a
+```
+
+In addition, filtering and selecting can be combined in a single expression,
+
+```{r}
+a <- table[table$a == 1, ]$a
+```
+
+R also allows users to select multiple columns from a database, however PMML
+does not support, meaning that neither does the software. The following
+expression should return an error,
+
+```{r}
+ab <- table[table$a == 1, c("a", "b")]
+```
+
+Writing the equivalent PMML code is the same as for filtering, except we set
+the `outputColumn` attribute to the selected column. The equivalent PMML
+for the above two code chunks are shown below,
+
+```{xml}
+<DerivedField name="a">
+  <MapValues outputColumn="a">
+  </MapValues>
+</DerivedField>
+```
+
+```{xml}
+<DerivedField name="a">
+  <MapValues outputColumn="a">
+    <FieldColumnPair column="a" constant="1" />
+  </MapValues>
+</DerivedField>
+```
+
+Notice how in the first chunk there aren't any `FieldColumnPair` elements
+since there aren't any conditions.
+
+### `TableLocator`
+
+In all the PMML chunks above we never specified where the actual table we're
+filtering and selecting is coming from. This is where the `TableLocator` node
+comes in, its used to specify where the table is coming from as well as the name
+of the table to use from that location. If has the following attributes:
+
+* `name`: The name of the table to use
+* `location`: Where to look for the table. This can have the following values:
+  * `taxonomy`: Look for it in the `Taxonomy` element within the PMML file
+  * `local`: Look for it in a local variable, either in the `DerivedField` 
+  element or `DataDictionary` element
+  
+The main issue is whether to set `location` to `taxonomy` or `local`. When 
+deciding this value:
+
+1. We first check if the table is present as a `Taxonomy`
+element
+2. If it isn't then we check if it is in the local scope, setting it to `local`
+if it is
+3. If it isn't local, then we return an error
+
+For example, for the code chunks above that use the `table` variable, we would
+use `taxonomy` as shown below,
+
+```{xml}
+<DerivedField name="filtered_table">
+  <MapValues>
+    <FieldColumnPair column="a" constant="1" />
+    <TableLocator name="table" location="taxonomy" />
+  <MapValues>
+</DerivedField>
+```
+
+```{xml}
+<DerivedField name="b">
+  <Constant>4</Constant>
+</DerivedField>
+<DerivedField name="filtered_table_1">
+  <MapValues>
+    <FieldColumnPair column="a" constant="1" />
+    <FieldColumnPair column="b" field="b" />
+    <TableLocator name="table" location="taxonomy" />
+  <MapValues>
+</DerivedField>
+```
+
+```{xml}
+<DerivedField name="a">
+  <MapValues outputColumn="a">
+    <FieldColumnPair column="a" constant="1" />
+    <TableLocator name="table" location="taxonomy" />
+  </MapValues>
+</DerivedField>
+```
+
+and for the remaining tables we would use `local` as shown below,
+
+```{xml}
+<DerivedField name="b">
+  <Constant>4</Constant>
+</DerivedField>
+<DerivedField name="filtered_table_1">
+  <MapValues>
+    <FieldColumnPair column="a" constant="1" />
+    <FieldColumnPair column="b" field="b" />
+    <TableLocator name="filtered_table" location="local" />
+  <MapValues>
+</DerivedField>
+```
+
+#### `DefineFunction`
+
+When working with a function, the situation is reversed:
+
+1. We first check if the table is present as a local variable within the 
+function's scope, setting the location to `local` if so
+2. Otherwise we check if the table is present in a `Taxonomy` element, setting
+it to `taxonomy` if so
+3. Otherwise, we return an error
+
+For example, look at the following two code chunks,
+
+```{r}
+table_func_1 <- function(table) {
+  return(table$a)
+}
+```
+
+```{r}
+table_func_2 <- function() {
+  return(table$a)
+}
+```
+
+The first one has `table` variable that is passed in as an argument whereas
+the second one is using the earlier defined `table`. The PMML for the two
+code chunks are shown below,
+
+```{xml}
+<DefineFunction name="table_func_1">
+    <ParameterField name="table" />
+    <MapValues outputColumn="a">
+      <TableLocator name="table" location="local" />
+    </MapValues>
+</DefineFunction>
+```
+
+
+```{xml}
+<DefineFunction name="table_func_2">
+    <MapValues outputColumn="a">
+      <TableLocator name="table" location="taxonomy" />
+    </MapValues>
+</DefineFunction>
+```
