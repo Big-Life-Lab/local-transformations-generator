@@ -1,6 +1,14 @@
 context("Testing converting math expressions")
 
 test_that("Math expressions outside functions are correctly generated", {
+  code <- '
+  c <- a + b
+
+d <- e - f
+
+g <- h^2
+'
+
   expected_pmml <- '<PMML>
 <LocalTransformations>
 <DerivedField name="c" optype="continuous">
@@ -24,10 +32,24 @@ test_that("Math expressions outside functions are correctly generated", {
 </LocalTransformations>
 </PMML>'
 
-  test_utils_test_code_file("test-math/code/test-math-code-1.R", expected_pmml)
+  test_utils_run_generate_pmml_test(code, expected_pmml)
 })
 
 test_that("Math expressions inside functions are correctly generated", {
+code <- '
+a <- function(b, c) {
+  return(b*c)
+}
+
+d <- function(e, f) {
+  return(e/f)
+}
+
+g <- function(h) {
+  return(h^2)
+}
+'
+
   expected_pmml <- '<PMML>
 <LocalTransformations>
 <DefineFunction name="a">
@@ -56,5 +78,5 @@ test_that("Math expressions inside functions are correctly generated", {
 </LocalTransformations>
 </PMML>'
 
-  test_utils_test_code_file("test-math/code/test-math-code-2.R", expected_pmml)
+  test_utils_run_generate_pmml_test(code, expected_pmml)
 })

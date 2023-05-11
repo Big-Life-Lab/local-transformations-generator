@@ -1,6 +1,14 @@
 context("Testing custom functions")
 
-test_that("Simple custom function PMML is correctly generated", {
+test_that("Simple custom function PMML is correctly generated", { 
+    code <- '
+    testFunction <- function(testOne) {
+      testTwo <- testOne + 1
+  
+      return(testTwo)
+    }
+    '
+
     expected_pmml <- '<PMML>
 <LocalTransformations>
 <DefineFunction name="testFunction(testTwo)">
@@ -19,10 +27,18 @@ test_that("Simple custom function PMML is correctly generated", {
 </LocalTransformations>
 </PMML>'
 
-    test_utils_test_code_file("test-custom-functions/code/test-define-function-code.R", expected_pmml)
+    test_utils_run_generate_pmml_test(code, expected_pmml)
 })
 
 test_that("Default function arguments are correctly generated", {
+  code <- "
+    testFunc <- function(argOne = 1 + 1, argTwo = 'a') {
+      test <- argOne + argTwo
+    }
+
+    a <- testFunc()
+  "
+
   expected_pmml <- '<PMML>
 <LocalTransformations>
 <DefineFunction name=\"default(argOne)\">
@@ -74,10 +90,16 @@ test_that("Default function arguments are correctly generated", {
 </DerivedField>
 </LocalTransformations></PMML>'
 
-  test_utils_test_code_file("test-custom-functions/code/test-default-function-args-code.R", expected_pmml)
+  test_utils_run_generate_pmml_test(code, expected_pmml)
 })
 
 test_that("No return statement function are correctly generated", {
+  code <- '
+    a <- function() {
+      b <- 1
+    }
+  '
+
   expected_pmml <- '<PMML>
 <LocalTransformations>
 <DefineFunction name="a">
@@ -86,5 +108,5 @@ test_that("No return statement function are correctly generated", {
 </LocalTransformations>
 </PMML>'
 
-  test_utils_test_code_file("test-custom-functions/code/test-no-return-code.R", expected_pmml)
+  test_utils_run_generate_pmml_test(code, expected_pmml)
 })

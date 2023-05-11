@@ -1,6 +1,12 @@
 context("Data frame code")
 
 test_that("Data frame code within single line functions using table within the function scope are correctly generated", {
+  code <- '
+       a <- function(b, table) {
+        return(table[table$b == b, ]$c)
+      } 
+  '
+
   expected_pmml <- '<PMML>
 <LocalTransformations>
 <DefineFunction name="a">
@@ -14,10 +20,16 @@ test_that("Data frame code within single line functions using table within the f
 </LocalTransformations>
 </PMML>'
 
-  test_utils_test_code_file("test-df-code/function-scope.R", expected_pmml)
+  test_utils_run_generate_pmml_test(code, expected_pmml)
 })
 
 test_that("Data frame code within single line functions using tables outside the function scope are correctly generated", {
+  code <- '
+    a <- function(b) {
+  return(table[table$c == b, ]$d)
+}
+'
+
   expected_pmml <- '<PMML>
 <LocalTransformations>
 <DefineFunction name="a">
@@ -30,10 +42,16 @@ test_that("Data frame code within single line functions using tables outside the
 </LocalTransformations>
 </PMML>'
 
-  test_utils_test_code_file("test-df-code/outside-function-scope.R", expected_pmml)
+  test_utils_run_generate_pmml_test(code, expected_pmml)
 })
 
 test_that("Retreiving output column from function return", {
+ code <- '
+a <- function() {
+  return(b()$c)
+}
+'
+
   expected_pmml <- '<PMML>
 <LocalTransformations>
 <DefineFunction name="a">
@@ -46,10 +64,16 @@ test_that("Retreiving output column from function return", {
 </LocalTransformations>
 </PMML>'
 
-  test_utils_test_code_file("test-df-code/output-column-function-return.R", expected_pmml)
+  test_utils_run_generate_pmml_test(code, expected_pmml)
 })
 
 test_that("Data frame query with no output column is correctly generated", {
+  code <- '
+a <- function(table) {
+  return(table[table$b == "1", ])
+}
+'
+
   expected_pmml <- '<PMML>
 <LocalTransformations>
 <DefineFunction name="a">
@@ -62,5 +86,5 @@ test_that("Data frame query with no output column is correctly generated", {
 </LocalTransformations>
 </PMML>'
 
-  test_utils_test_code_file("test-df-code/no-output-column.R", expected_pmml)
+  test_utils_run_generate_pmml_test(code, expected_pmml)
 })

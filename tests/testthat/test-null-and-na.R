@@ -1,6 +1,10 @@
 context("Testing converting NULL and NA")
 
 test_that("NULL outside functions are correctly generated", {
+  code <- '
+    a <- NULL
+  '
+
   expected_pmml <- '<PMML>
 <LocalTransformations>
 <DerivedField name="a" optype="continuous">
@@ -9,11 +13,15 @@ test_that("NULL outside functions are correctly generated", {
 </LocalTransformations>
 </PMML>'
 
-  test_utils_test_code_file("test-null-and-na/code/test-null-code-1.R", expected_pmml)
+  test_utils_run_generate_pmml_test(code, expected_pmml)
 })
 
 test_that("NA outside functions are correctly generated", {
-  expected_pmml <- '<PMML>
+ code <- '
+    a <- NA
+ '
+
+ expected_pmml <- '<PMML>
 <LocalTransformations>
 <DerivedField name="a" optype="continuous">
 <Constant dataType="NA">NA</Constant>
@@ -21,10 +29,16 @@ test_that("NA outside functions are correctly generated", {
 </LocalTransformations>
 </PMML>'
 
-  test_utils_test_code_file("test-null-and-na/code/test-na-code-1.R", expected_pmml)
+  test_utils_run_generate_pmml_test(code, expected_pmml)
 })
 
 test_that("NULL inside functions are correctly generated", {
+  code <- '
+    a <- function() {
+        return(NULL)
+    }
+ ' 
+
   expected_pmml <- '<PMML>
 <LocalTransformations>
 <DefineFunction name="a">
@@ -33,10 +47,16 @@ test_that("NULL inside functions are correctly generated", {
 </LocalTransformations>
 </PMML>'
 
-  test_utils_test_code_file("test-null-and-na/code/test-null-code-2.R", expected_pmml)
+  test_utils_run_generate_pmml_test(code, expected_pmml)
 })
 
 test_that("NA outside functions are correctly generated", {
+ code <- '
+    a <- function() {
+        return(NA)
+    }
+ '
+
   expected_pmml <- '<PMML>
 <LocalTransformations>
 <DefineFunction name="a">
@@ -45,5 +65,5 @@ test_that("NA outside functions are correctly generated", {
 </LocalTransformations>
 </PMML>'
 
-  test_utils_test_code_file("test-null-and-na/code/test-na-code-2.R", expected_pmml)
+  test_utils_run_generate_pmml_test(code, expected_pmml)
 })

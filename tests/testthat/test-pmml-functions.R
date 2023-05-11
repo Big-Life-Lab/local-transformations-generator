@@ -1,6 +1,10 @@
 context("Testing PMML functions")
 
 test_that("Exists function is correctly converted", {
+  code <- '
+    test <- exists("testOne")
+  '
+
   expected_pmml <- '<PMML>
 <LocalTransformations>
 <DerivedField name="test" optype="continuous">
@@ -10,10 +14,14 @@ test_that("Exists function is correctly converted", {
 </LocalTransformations>
 </PMML>'
 
-  test_utils_test_code_file("test-pmml-functions/code/test-exists-code.R", expected_pmml)
+  test_utils_run_generate_pmml_test(code, expected_pmml)
 })
 
 test_that("c function is correctly converted", {
+  code <- '
+    a <- b %in% c(1, NA, "2")
+  '
+
   expected_pmml <- '<PMML>
 <LocalTransformations>
 <DerivedField name="a" optype="continuous">
@@ -26,5 +34,5 @@ test_that("c function is correctly converted", {
 </LocalTransformations>
 </PMML>'
 
-  test_utils_test_code_file("test-pmml-functions/code/test-c-code.R", expected_pmml)
+  test_utils_run_generate_pmml_test(code, expected_pmml)
 })

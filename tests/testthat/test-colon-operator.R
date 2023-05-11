@@ -1,6 +1,10 @@
 context("Testing converting colon operator")
 
 test_that("Colon operator outside functions are correctly generated", {
+  code <- '
+  a <- b %in% 6:9
+  '
+
   expected_pmml <- '<PMML>
 <LocalTransformations>
 <DerivedField name="a" optype="continuous">
@@ -15,10 +19,16 @@ test_that("Colon operator outside functions are correctly generated", {
 </LocalTransformations>
 </PMML>'
 
-  test_utils_test_code_file("test-colon-operator/code/test-colon-operator-code-1.R", expected_pmml)
+  test_utils_run_generate_pmml_test(code, expected_pmml)
 })
 
 test_that("Colon operator inside functions are correctly generated", {
+  code <- '
+    a <- function(b) {
+        return(b %in% 6:9)
+    }
+  '
+
   expected_pmml <- '<PMML>
 <LocalTransformations>
 <DefineFunction name="a">
@@ -34,5 +44,5 @@ test_that("Colon operator inside functions are correctly generated", {
 </LocalTransformations>
 </PMML>'
 
-  test_utils_test_code_file("test-colon-operator/code/test-colon-operator-code-2.R", expected_pmml)
+  test_utils_run_generate_pmml_test(code, expected_pmml)
 })
