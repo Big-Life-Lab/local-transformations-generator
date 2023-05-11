@@ -1,6 +1,21 @@
 context("Testing converting PMML Custom Functions")
 
 test_that("z-score functions outside functions are correctly generated", {
+  code <- '
+    reference_table <- read.csv(file.path(getwd(), "reference-table.csv"))
+
+    #Test One
+    # @pmml_custom_func(z_score, Juice_cont, reference_table)
+    #Test One
+    zJuice <- zScore.fun(Juice_cont)
+  '
+
+  reference_table <- data.frame(
+    variable = c("Juice_cont", "Potatoes_cont"),
+    mean = c(10, 20),
+    sd = c(15, 25)
+  )
+
   expected_pmml <- '<PMML>
 <Taxonomy name="reference_table">
 <InlineTable>
@@ -18,5 +33,9 @@ test_that("z-score functions outside functions are correctly generated", {
 </DerivedField>
 </LocalTransformations></PMML>'
 
-  test_utils_test_code_file("test-pmml-custom-func/code/test-pmml-custom-func-code-1.R", expected_pmml)
+  test_utils_run_generate_pmml_test(
+    code, 
+    expected_pmml,
+    files = list('reference-table' = list(type = "CSV", contents = reference_table))
+  )
 })

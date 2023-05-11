@@ -1,6 +1,21 @@
 context("Testing if expressions")
 
 test_that("If expressions outside functions are correctly generated", {
+  code <- '
+if (a == 0){
+  b <- 0
+  c <- 0
+} else if(d == 1) {
+  e <- 1
+} else if(a == 3) {
+  b <- 3
+  c <- 3
+} else {
+  b <- 4
+  c <- 4
+}
+'
+
   expected_pmml <- '<PMML>
 <LocalTransformations>
 <DerivedField name="b" optype="continuous">
@@ -54,13 +69,32 @@ test_that("If expressions outside functions are correctly generated", {
 </LocalTransformations>
 </PMML>'
 
-  test_utils_test_code_file(
-    "test-if/code/test-if-code-1.R",
+  test_utils_run_generate_pmml_test(
+    code,
     expected_pmml
   )
 })
 
 test_that("If expressions inside functions that are not the last expression are correctly generated", {
+  code <- '
+test <- function(a, d) {
+  if (a == 0){
+    b <- 0
+    c <- 0
+  } else if(d == 1) {
+    e <- 1
+  } else if(a == 3) {
+    b <- 3
+    c <- 3
+  } else {
+    b <- 4
+    c <- 4
+  }
+  
+  return(b + c + e)
+}
+'
+
   expected_pmml <- '<PMML>
 <LocalTransformations>
 <DefineFunction name="test(b)">
@@ -136,10 +170,26 @@ test_that("If expressions inside functions that are not the last expression are 
 </LocalTransformations>
 </PMML>'
 
-  test_utils_test_code_file("test-if/code/test-if-code-2.R", expected_pmml)
+  test_utils_run_generate_pmml_test(code, expected_pmml)
 })
 
 test_that("If expressions inside functions as the last expressions are correctly generated",  {
+  code <- '
+test <- function(a, b) {
+  if(a == 1) {
+    c <- 1
+    return(1)
+  } else if(b == 2) {
+    d <- 2
+  } else if(a == 3) {
+    c <- 3
+    e <- 3
+  } else {
+    f <- 4
+  }
+}
+'
+
   expected_pmml <- '<PMML>
 <LocalTransformations>
 <DefineFunction name="test">
@@ -171,5 +221,5 @@ test_that("If expressions inside functions as the last expressions are correctly
 </LocalTransformations>
 </PMML>'
 
-  test_utils_test_code_file("test-if/code/test-if-code-3.R", expected_pmml)
+  test_utils_run_generate_pmml_test(code, expected_pmml)
 })

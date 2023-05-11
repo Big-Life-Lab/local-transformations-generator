@@ -1,6 +1,14 @@
 context("Testing custom function call")
 
 test_that("Calling custom functions with defaulted args are correctly generated", {
+  code <- '
+  func_one <- function(arg_one, default_arg = 0) {
+    return(arg_one)
+  }
+
+  var_one <- func_one(1)
+  '
+
   expected_pmml <- '<PMML>
 <LocalTransformations>
 <DefineFunction name="default(default_arg)"><ParameterField name="arg_one" dataType="double"/><ParameterField name="default_arg" dataType="double"/><Apply function="if"><Apply function="equal
@@ -10,5 +18,5 @@ test_that("Calling custom functions with defaulted args are correctly generated"
 </LocalTransformations>
 </PMML>'
 
-  test_utils_test_code_file("test-custom-function-call/code/test-custom-function-call.R", expected_pmml)
+  test_utils_run_generate_pmml_test(code, expected_pmml)
 })
