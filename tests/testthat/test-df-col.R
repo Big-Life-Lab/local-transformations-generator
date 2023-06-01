@@ -50,20 +50,42 @@ a <- table["b", "c"]
  
 test_that("Wildcard column access expressions inside functions throw an error", {
      code <- '
-test <- function(table) {
+test <- function() {
   a <- table[table$col1 == "val", ]$col2
 }
 '
+    
+    expected_pmml <- '<PMML>
+<LocalTransformations>
+<DefineFunction name="test">
+<MapValues outputColumn="col2">
+<FieldColumnPair column="col1" constant="val"/>
+<TableLocator location="taxonomy" name="table"/>
+</MapValues>
+</DefineFunction>
+</LocalTransformations>
+</PMML>'
 
-    test_utils_run_generate_pmml_test(code, expected_error = strings_unsupported_df_col_access_expr_error)
+    test_utils_run_generate_pmml_test(code, expected_pmml)
 })
 
 test_that("Non-wildcard column access expressions inside functions throw an error", {
     code <- '
     test <- function() {
-  a <- table["col1", "col2"]
+  a <- table["b", "c"]
 }
     '
 
-    test_utils_run_generate_pmml_test(code, expected_error = strings_unsupported_df_col_access_expr_error)
+    expected_pmml <- '<PMML>
+<LocalTransformations>
+<DefineFunction name="test">
+<MapValues outputColumn="c">
+<FieldColumnPair column="index" constant="b"/>
+<TableLocator location="taxonomy" name="table"/>
+</MapValues>
+</DefineFunction>
+</LocalTransformations>
+</PMML>'
+
+    test_utils_run_generate_pmml_test(code, expected_pmml)
 })
