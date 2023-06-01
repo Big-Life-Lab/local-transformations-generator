@@ -330,8 +330,6 @@ define_function_get_pmml_str_for_expr <- function(
     is_last_expr,
     function_scope_variables
   ) {
-    print('define_function_get_pmml_str_for_expr')
-    print(function_scope_variables)
   return(
     expr_generic_get_pmml_str_for_expr(
       get_pmml_str_for_row_access,
@@ -365,8 +363,6 @@ get_pmml_string_for_expr_token_within_function <-
     #Get the expression token which has the initialization code
     initialization_expr_token <- get_token_with_assignment_code(get_child_tokens_for_parent(inner_function_expr_token, tokens))
 
-  print('get_pmml_string_for_expr_token_within_function')
-  print(function_scope_variables)
     pmml_string_for_initialization_expr_token <- define_function_get_pmml_str_for_expr(initialization_expr_token, tokens, original_function_name, original_function_arg_tokens, FALSE, function_scope_variables)
   }
 
