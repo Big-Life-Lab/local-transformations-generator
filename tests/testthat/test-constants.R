@@ -1,6 +1,10 @@
 context("Testing converting constants")
 
 test_that("Constant expressions outside functions are correctly generated", {
+  code <- '
+    a <- "string"
+  '
+
   expected_pmml <- '<PMML>
 <LocalTransformations>
 <DerivedField name="a" optype="continuous">
@@ -9,10 +13,15 @@ test_that("Constant expressions outside functions are correctly generated", {
 </LocalTransformations>
 </PMML>'
 
-  test_utils_test_code_file("test-constants/code/test-constants-code-1.R", expected_pmml)
+  test_utils_run_generate_pmml_test(code, expected_pmml)
 })
 
 test_that("Constant expressions inside functions are correctly generated", {
+  code <- '
+    b <- function() {
+        c <- 1
+    }
+  '
   expected_pmml <- '<PMML>
 <LocalTransformations>
 <DefineFunction name="b">
@@ -21,5 +30,5 @@ test_that("Constant expressions inside functions are correctly generated", {
 </LocalTransformations>
 </PMML>'
 
-  test_utils_test_code_file("test-constants/code/test-constants-code-2.R", expected_pmml)
+  test_utils_run_generate_pmml_test(code, expected_pmml)
 })

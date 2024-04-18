@@ -1,6 +1,11 @@
 context("Testing accessing rows from data frames")
 
 test_that("Accessing rows outside functions are correctly generated", {
+  code <- '
+ row <- table[table$col1 == "val", ]
+col <- row$col1
+'
+
   expected_pmml <- '<PMML>
 <LocalTransformations>
 <DerivedField name="row" optype="continuous">
@@ -17,12 +22,24 @@ test_that("Accessing rows outside functions are correctly generated", {
 </LocalTransformations>
 </PMML>'
 
-  test_utils_test_code_file("test-df-row/code/test-df-row-code-1.R", expected_pmml)
+  test_utils_run_generate_pmml_test(code, expected_pmml)
   expect_false(exists("row_vars"),
                info = "row_vars has not been cleared from global environment")
 })
 
 test_that("Accessing rows inside functions are correctly generated", {
+  code <- '
+test <- function(row, const, row_two) {
+  return(row$col3 + const + row_two$col4)
+}
+
+row <- table[table$col1 == a, ]
+row_two <- table[table$col2 == "val1", ]
+row_three <- table[table$col3 == b, ]
+
+col <- test(row, 1, row_two) + test(row, 1, row_three)
+'
+
   expected_pmml <- '<PMML>
 <LocalTransformations>
 <DefineFunction name="test">
@@ -76,12 +93,22 @@ test_that("Accessing rows inside functions are correctly generated", {
 </LocalTransformations>
 </PMML>'
 
-  test_utils_test_code_file("test-df-row/code/test-df-row-code-2.R", expected_pmml)
+  test_utils_run_generate_pmml_test(code, expected_pmml)
   expect_false(exists("row_vars"),
                info = "row_vars has not been cleared from global environment")
 })
 
 test_that("Accessing rows inside functions that takes only one parameter which is a row are correctly generated", {
+  code <- '
+test <- function(row) {
+  return(row$col3)
+}
+
+row <- table[table$col1 == a, ]
+
+col <- test(row)
+'
+
   expected_pmml <- '<PMML>
 <LocalTransformations>
 <DefineFunction name="test">
@@ -104,7 +131,7 @@ test_that("Accessing rows inside functions that takes only one parameter which i
 </LocalTransformations>
 </PMML>'
 
-  test_utils_test_code_file("test-df-row/code/test-df-row-code-3.R", expected_pmml)
+  test_utils_run_generate_pmml_test(code, expected_pmml)
   expect_false(exists("row_vars"),
                info = "row_vars has not been cleared from global environment")
 })

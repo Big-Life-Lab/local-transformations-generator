@@ -1,6 +1,14 @@
 context("Testing accessing columns from data frames")
 
 test_that("Wildcard column access expressions outside functions are correctly generated", {
+ code <- '
+# Test for when the value being compared to is a constant
+a <- table[table$col1 == "val", ]$col2
+
+# Test for when the value being compared to is in a variable
+b <- table[table$col1 == val, ]$col2
+'
+
   expected_pmml <- '<PMML>
 <LocalTransformations>
 <DerivedField name="a" optype="continuous">
@@ -18,10 +26,14 @@ test_that("Wildcard column access expressions outside functions are correctly ge
 </LocalTransformations>
 </PMML>'
 
-  test_utils_test_code_file("test-df-col/code/test-df-col-code-1.R", expected_pmml)
+  test_utils_run_generate_pmml_test(code, expected_pmml)
 })
 
 test_that("Non-wildcard column access expressions outside functions are correctly generated", {
+ code <- '
+a <- table["b", "c"]
+'
+
   expected_pmml <- '<PMML>
 <LocalTransformations>
 <DerivedField name="a" optype="continuous">
@@ -33,13 +45,47 @@ test_that("Non-wildcard column access expressions outside functions are correctl
 </LocalTransformations>
 </PMML>'
 
-  test_utils_test_code_file("test-df-col/code/test-df-col-code-2.R", expected_pmml)
+  test_utils_run_generate_pmml_test(code, expected_pmml)
 })
-
+ 
 test_that("Wildcard column access expressions inside functions throw an error", {
-  expect_error(get_pmml_string_from_r_file(file.path(getwd(), "../../assets/test/test-df-col/code/test-df-col-code-3.R"), src_file = TRUE), strings_unsupported_df_col_access_expr_error)
+     code <- '
+test <- function() {
+  a <- table[table$col1 == "val", ]$col2
+}
+'
+    
+    expected_pmml <- '<PMML>
+<LocalTransformations>
+<DefineFunction name="test">
+<MapValues outputColumn="col2">
+<FieldColumnPair column="col1" constant="val"/>
+<TableLocator location="taxonomy" name="table"/>
+</MapValues>
+</DefineFunction>
+</LocalTransformations>
+</PMML>'
+
+    test_utils_run_generate_pmml_test(code, expected_pmml)
 })
 
 test_that("Non-wildcard column access expressions inside functions throw an error", {
-  expect_error(get_pmml_string_from_r_file(file.path(getwd(), "../../assets/test/test-df-col/code/test-df-col-code-4.R"), src_file = TRUE), strings_unsupported_df_col_access_expr_error)
+    code <- '
+    test <- function() {
+  a <- table["b", "c"]
+}
+    '
+
+    expected_pmml <- '<PMML>
+<LocalTransformations>
+<DefineFunction name="test">
+<MapValues outputColumn="c">
+<FieldColumnPair column="index" constant="b"/>
+<TableLocator location="taxonomy" name="table"/>
+</MapValues>
+</DefineFunction>
+</LocalTransformations>
+</PMML>'
+
+    test_utils_run_generate_pmml_test(code, expected_pmml)
 })

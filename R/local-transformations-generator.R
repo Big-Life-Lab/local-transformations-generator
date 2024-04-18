@@ -48,7 +48,7 @@ get_define_function_for_default_arg_expr <- function(arg_symbol_formal, all_arg_
 
     default_value <- NA
     if(token_after_eq_formals_token$token == EXPR_TOKEN) {
-      default_value <- define_function_get_pmml_str_for_expr(token_after_eq_formals_token, tokens, func_name, function_param_tokens, FALSE)
+      default_value <- define_function_get_pmml_str_for_expr(token_after_eq_formals_token, tokens, func_name, function_param_tokens, FALSE, c())
     } else {
       default_value <- get_pmml_string_for_constant(token_after_eq_formals_token)
     }

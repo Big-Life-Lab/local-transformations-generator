@@ -1,6 +1,16 @@
 context("Testing sourcing other files")
 
 test_that("PMML is correctly generated", {
+code <- '
+  source(file.path(getwd(), "source-code-2.R"))
+
+a <- 1
+'
+
+source_code_2 <- '
+  b <- 3
+'
+
   expected_pmml <- '<PMML>
 <LocalTransformations>
 <DerivedField name="b" optype="continuous">
@@ -11,5 +21,12 @@ test_that("PMML is correctly generated", {
 </DerivedField>
 </LocalTransformations></PMML>'
 
-  test_utils_test_code_file("test-source/code/test-source-code-1.R", expected_pmml)
+  test_utils_run_generate_pmml_test(code, expected_pmml,
+                                    files = list(
+                                      'source-code-2' = list(
+                                        type = 'R',
+                                        contents = source_code_2
+                                      )
+                                    )
+                                   )
 })
