@@ -1,0 +1,184 @@
+---
+title: Switch
+format: html
+---
+
+This document will go over the specifications for converting an 
+[R switch](https://www.learn-r.org/r-tutorial/r-switch.php) statement into 
+[PMML](https://dmg.org/pmml/pmml-v4-4.html).
+
+## Context
+
+Although any logic that is defined using a switch statement can also be 
+defined using an if-else statement, if the conditional statement involves 
+simply mapping the values in a variable to an expression, the switch
+statement provides a more terse way of doing so compared to an if statement.
+
+For example, consider the following if statement below,
+
+```{r, eval=FALSE}
+if(a == 1) {
+    print('a')
+} else if (a == 2) {
+    print('b')
+} else {
+    print('c')
+}
+```
+
+The equivalent code using the switch statement is below which is less verbose,
+
+```{r, eval=FALSE}
+switch(
+    a,
+    '1' = print('a'),
+    '2' = print('b'),
+    'c'
+)
+```
+
+Adding support for switch statements in the package gives more options to the 
+user for defining conditional logic.
+
+## Converting to PMML
+
+Since a switch statement is just an if statement underneath the hood, the PMML
+[if function](https://dmg.org/pmml/v4-1/BuiltinFunctions.html#boolean6) 
+can be used to represent it.
+
+For example, consider the switch statement below,
+
+```{r, eval=FALSE}
+switch(
+    a,
+    '1' = 'a',
+    '2' = 'b',
+    'c'
+)
+```
+
+The equivalent PMML code would be,
+
+```{xml}
+<Apply function="if">
+    <Apply function="equal">
+        <DataField name="a"/>
+        <Constant dataType="string">1</Constant>
+    </Apply>
+    <Constant dataType="string">a</Constant>
+    <Apply function="if">
+        <Apply function="equal">
+            <DataField name="a"/>
+            <Constant dataType="string">2</Constant>
+        </Apply>
+        <Constant dataType="string">b</Constant>
+        <Constant dataType="string">c</Constant>
+    </Apply>
+</Apply>
+```
+
+The above switch statement only has string values as its results, however the 
+results can also be generated from more complex expressions like a function 
+call. The switch statement below is an example,
+
+```{r, eval=FALSE}
+switch(
+    a,
+    '1' = when_one(),
+    'c'
+)
+```
+
+The equivalent PMML code is below,
+
+```{xml}
+<Apply function="if">
+    <Apply function="equal">
+        <DataField name="a"/>
+        <Constant dataType="string">1</Constant>    
+    </Apply>
+    <Apply function="when_one"></Apply>    
+    <Constant dataType="string">c</Constant>
+</Apply>
+```
+
+R does not require a default value to be defined in a switch statement,
+example code below.
+
+```{r, eval=FALSE}
+switch(
+    a,
+    '1' = 'a',
+    '2' = 'b'
+)
+```
+
+If the value of `a` is 3 for example then a missing value or `NA` would be 
+returned. When converting to PMML this will have to be taken into account. 
+The PMML for the above piece of code is shown below,
+
+```{xml}
+<Apply function="if">
+    <Apply function="equal">
+        <DataField name="a"/>
+        <Constant dataType="string">1</Constant>    
+    </Apply>
+    <Constant dataType="string">a</Constant>
+    <Apply function="if">
+        <Apply function="equal">
+            <DataField name="a"/>
+            <Constant dataType="string">2</Constant>    
+        </Apply>
+        <Constant dataType="string">b</Constant>
+        <Constant dataType="NA">NA</Constant>
+    </Apply>
+</Apply>
+```
+
+## Restrictions
+
+### Multi-line statement results 
+
+R allows the result of a switch statement to have multiple expressions by 
+enclosing it in brackets. Example shown below,
+
+```{r, eval=FALSE}
+switch(
+    a, 
+    '1' = {
+        b <- 1
+        calc_result(b)
+    },
+    'c'
+)
+```
+
+However since PMML only allows single expressions to be encoded in the result
+of an if function, the above switch statement should show an error to the user.
+PMML can be "hacked" to allow the above expressions by using `DefineFunction` 
+nodes. An example of the hack is shown below,
+
+```{xml}
+<!-- Function which contains the expression b <- 1 -->
+<DefineFunction name="switch_1_b">
+    <Constant dataType="double">1</Constant>
+</DefineFunction>
+
+<!-- Function which contains the expression calc_result(b) -->
+<DefineFunction name="switch_1_result">
+    <Apply function="calc_result">
+        <Apply function="switch_1_b" />
+    </Apply>
+</DefineFunction>
+
+<!-- The switch statment -->
+<Apply function="if">
+    <Apply function="equal">
+        <DataField name="a"/>
+        <Constant dataType="string">1</Constant>
+    </Apply>
+    <Apply function="switch_1_result"/>
+    <Constant dataType="string">c</Constant>
+</Apply>
+```
+

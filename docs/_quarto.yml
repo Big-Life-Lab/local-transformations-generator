@@ -11,6 +11,7 @@ website:
       - section: Specifications
         contents:
           - tables.qmd
+          - switch.qmd
 format:
   html:
     theme: cosmo
