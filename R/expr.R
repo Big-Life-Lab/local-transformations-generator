@@ -85,6 +85,9 @@ expr_generic_get_pmml_str_for_expr <- function(
             return(get_pmml_string_for_symbol_function_call(function_name, glue::glue('<FieldRef field="{exits_arg}"/>')))
           }# If read.csv function call. Do nothing since we handle converting csv files to PMML tables at the beginning
           else if(function_name == 'read.csv') {}
+          else if(function_name == 'switch') {
+            return(convert_switch_statement_to_pmml(expr, tokens, scope_variables, get_pmml_str_for_expr))
+          }
           else {
             # Get the PMML string for the arguments passed into the function represented
             # by the function call expr in the func_call_expr arg
