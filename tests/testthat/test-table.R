@@ -33,8 +33,8 @@ table <- read.csv(file.path(getwd(), "table.csv"))
 <row><index>3</index><col1>1</col1><col2>2</col2><col3>3</col3><out>v</out></row>
 </InlineTable>
 </Taxonomy>
-<LocalTransformations>
-</LocalTransformations></PMML>'
+<LocalTransformations/>
+</PMML>'
 
   test_utils_run_generate_pmml_test(code, expected_pmml,
     files = list(

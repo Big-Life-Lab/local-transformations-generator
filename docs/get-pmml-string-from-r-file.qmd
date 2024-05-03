@@ -1,0 +1,597 @@
+---
+title: "get_pmml_string_from_r_file"
+format: html
+---
+
+```{r, Importing Libraries}
+#| echo: false
+#| warning: false
+
+library(magrittr)
+```
+
+This document will go over the specifications and design of a function 
+`get_pmml_string_from_r_file` that converts the code in an R file into its 
+equivalent PMML.
+
+The specifications and design are based on high level specifications defined in 
+other documents.
+
+# High Level Approach
+
+In order to convert each line of R code into PMML, the function will need to 
+know what each line is trying to do. For example, for the line of code
+displayed below,
+
+```{r}
+a <- 3
+```
+
+Is there a data structure that makes it easy to programmatically identify that
+the code is trying to:
+
+1. Create a new variable called `a` and
+2. Set its value to **3**
+
+A data structure called an **Abstract Syntax Tree** (AST) can be used to
+represent expressions in a program in a manner that is machine readable.
+
+In R, the `utils::getParseData` and `parse` function can be used to generate an 
+AST for R code. For example, for the assignment operation we displayed above the
+resultant AST is shown below,
+
+```{r}
+assignment_code <- 'a <- 3'
+# The keep.source argument is important otherwise for some reason the AST
+# returned will be NULL in Quarto
+assignment_ast <- utils::getParseData(parse(
+  text = assignment_code, 
+  keep.source = TRUE
+))
+print(assignment_ast)
+```
+
+The function returns a data frame which represents the AST. It may be hard to 
+visualize the tree within the data frame, below we've visualized the AST as a
+tree.
+
+```{r}
+#| echo: false
+
+visualize_ast <- function(code_string) {
+  ast <- utils::getParseData(parse(text = code_string, keep.source = TRUE))
+
+  nodes_df <- data.frame(
+    id = c(),
+    label = c(),
+    type = c(),
+    ast_id = c(),
+    title = c()
+  )
+  for(node_index in seq_len(nrow(ast))) {
+    label <- paste("ID: ", ast[node_index, "id"])
+    label <- paste(label, "\n Type: ", ast[node_index, "token"])
+    if (ast[node_index, "token"] != "expr") {
+      label <- paste(
+        label, 
+        "\n Text: ", ast[node_index, "text"]
+      )
+    }
+    nodes_df <- rbind(
+      nodes_df, 
+      data.frame(
+        id = c(node_index), 
+        label = c(label),
+        type = c(NA),
+        ast_id = c(ast[node_index, "id"])
+      )
+    )
+  }
+  
+  from <- c()
+  to <- c()
+  for(node_index in seq_len(nrow(ast))) {
+    if(ast[node_index, "parent"] != 0) {
+      from <- c(
+        from, 
+	c(nodes_df[nodes_df$ast_id == ast[node_index, "parent"], ]$id)
+      )
+      to <- c(to, c(nodes_df[nodes_df$ast_id == ast[node_index, "id"], ]$id))
+    }
+  }
+  visNetwork::visNetwork(
+    nodes_df,
+    data.frame(
+      from = from,
+      to = to
+    ),
+    width = "100%"
+  ) %>%
+    visNetwork::visEdges(arrows = "to") %>% 
+    visNetwork::visHierarchicalLayout()
+}
+
+visualize_ast(assignment_code)
+```
+
+Describing the above tree in English:
+
+* The top level node is an expression with ID 7 that contains all the other
+  nodes in the program
+* It contains three child nodes,
+  1. A left assign node (ID 2) 
+  2. An expression node (ID 3) which contains as a child node a symbol node
+     (ID 1) that holds the name of the variable being assigned
+  3. An expression node (ID 5) which contains as a child node a constant node
+     (ID 4) that holds the constant being assigned to the variable
+
+By generating an AST for every line of code the function can understand what
+its trying to do and generate the corresponding PMML string for it.
+
+Keeping all of the above in mind, the high level strategy for our function is
+shown below:
+
+1. Iterate through each line of code
+    1. Generate an AST for the current line
+    2. Convert it to a PMML expression
+    3. Add it to the master PMML for the current R file
+
+Within a PMML file only code that creates variables and functions can be 
+represented; after generating the AST for a line the function will need to
+ensure that its one of these two operations, otherwise it should throw an error.
+
+# Node Order
+
+Generally speaking the nodes in the data frame are arranged in the way the 
+code is written, but there are instances where that's true. For example in the 
+data frame printed above, the `expr` node with ID **3** appears after its child 
+node, the symbol node with ID **1**. Even the IDs of these two nodes are not 
+ordered correctly, one would expect the child node to have a higher ID than the 
+parent node.
+
+However, in certain contexts the order of the nodes in the data frame is used 
+to properly parse the code into PMML. For example for the assignment code
+example above, the LHS `expr` node appears before the RHS `expr` node 
+without which there would be no way to identify the LHS expression from the RHS. 
+
+Therefor when figuring out the parsing logic for an expression, its important 
+to not only look at the visualized AST but also the data frame as its returned 
+from the `getParseData` method.
+
+In addition, if the data frame is filtered/subsetted in any way for example 
+to return all the children of an expression node, the original order should 
+always be preserved. 
+
+# PMML Conversion
+
+This section will go over the operations identified in the high level 
+specifications and specify:
+
+1. The logic to identify the operation from an AST; and
+2. The approach to convert it to PMML
+
+## Assignment Operation
+
+The assignment operation in R is used to create new variables as well as assign 
+a value to it.
+
+Re-displaying the AST for the code string above that creates a new variable 
+called `a` and assigns it to a constant **3**,
+
+```{r}
+#| echo: false
+
+visualize_ast(assignment_code)
+```
+
+The steps to identify if an expression is an assignment operation are:
+
+1. Get the child nodes for the expression
+2. If the token for any child node is `LEFT_ASSIGN` then the parent expression 
+   is an assignment operation.
+
+A `DefineFunction` node should be created if the RHS of the operation is a 
+function, otherwise a `DerivedField` node should be created.
+
+To identify the RHS node we can use the logic below:
+
+1. Get all the child nodes for the assignment expression
+2. Filter out all nodes except the expression nodes. There should be only two 
+   expression nodes.
+3. The expression node whose child node does not have a `SYMBOL` for its token
+   field is the RHS.
+   
+The child nodes of the `DerivedField` or `DefineFunction` nodes are the result
+of converting the RHS expression to PMML.
+
+For the assignment operation above the resultant PMML is shown below,
+
+```{xml}
+<DerivedField name="a">
+</DerivedField>
+```
+
+Functions require special consideration and their specifications are described
+elsewhere.
+
+## Tables
+
+### Parsing a Table Operation
+
+This section will go over the different table operations identified in the high 
+level specifications and breakdown the AST for each one. The breakdown will go 
+over how to identify each operation from an AST as well as the nodes to keep in 
+mind when converting the operation to PMML.
+
+#### Importing a Table
+
+The code chunk below prints the AST for a `read.csv` function call whose 
+argument is **reference.csv**, the path to the CSV file to import as a table.
+
+```{r, AST for read.csv function call}
+read_csv_code <- 'read.csv("reference.csv")'
+visualize_ast(read_csv_code)
+```
+
+The steps to check if an expression is a `read.csv` function call are:
+
+1. Get all the child nodes for the expression. 
+2. Filter out all the nodes except the expressions. 
+3. If any of the expression nodes has a child node with a `SYMBOL_FUNCTION_CALL`
+   token then the expression is a function call.
+4. The text field of the `SYMBOL_FUNCTION_CALL` node has the name of the 
+   function being called. If the value is `read.csv` then the expression is
+   a `read.csv` function call.
+
+Applying the above steps to the example,
+
+1. The root node is an expression with ID 10. Its child nodes have IDs 3, 2, 6,
+   and 5.
+2. From these child nodes, only the nodes with IDs 3 and 6 are expressions.
+3. From the child expression nodes, the node with ID 3 has child node with ID
+   1 that is a `SYMBOL_FUNCTION_CALL`, showing that the expression is a function
+   call.
+4. Getting the text field from the `SYMBOL_FUNCTION_CALL` node will show that
+   its a `read.csv` function call.
+
+Once the function has identified that an expression is a `read.csv` function 
+call, the next step would be to evaluate the function call, storing the 
+resulting data frame for conversion to PMML. Converting a data frame to PMML has
+been outlined in the high level specifications.
+
+#### The Filter Operation
+
+The AST for a filter operation is shown below,
+
+```{r}
+filter_code <- "table[table$a == 1 & table$b == a, ]"
+visualize_ast(filter_code)
+```
+
+##### Identifying a Filter Operation
+
+The steps for identifying if an expression is a filter operation are:
+
+1. Get all the child nodes for the expression.
+2. The expression is a filter operation if the following two nodes are in the 
+   children:
+    1. A node whose token is **\[**
+    2. A node whose token is **\]**
+
+The steps for the example AST shown above are:
+
+1. The root node is an expression with ID 30. The child nodes have the IDs
+   3, 2, 24, 21, and 28.
+2. The nodes with ID 2 and 28 have the tokens **\[** and **\]** respectively,
+   thus identifying the root expression as a filter operation.
+
+##### Creating the `FieldColumnPair` nodes
+
+Creating the `FieldColumnPair` nodes requires the expression that contains
+all the filter conditions. In the filter operation above this is the code 
+`table$a == 1 & table$b == a` which is contained in the expression with ID 24
+in the AST.
+
+The steps to identify the filter conditions container expression are:
+
+1. Get all the child nodes for the root expression.
+2. Filter out everything but the expression nodes. There should be only two 
+   child expression nodes.
+3. Filter out the child expression node whose child node has `SYMBOL` as its 
+   token. The remaining expression node is what we're looking for.
+
+For the example AST shown above,
+
+1. The child nodes have IDs 3, 2, 24, 21, and 28
+2. Within these child nodes only the ones with IDs 3 and 24 are expression 
+   nodes
+3. From them, the node with ID 1 has a `SYMBOL` node as its child. This means
+   that the expression node 24 should be used to create the `FieldColumnPair`
+   PMML nodes.
+
+The filter condition container expression as its children contains a 
+mix of expression and non-expression nodes. Each child expression node is one 
+filter condition and each non-expression is the logical operator used to 
+separate them.
+
+In the example above the filter condition expression nodes have IDs 13 and 23 
+and there is only one non-expression child node with ID 12.
+
+According to the high level specifications only an **and** operator can be used 
+to separate each filter condition. This can be checked by making sure that every 
+non-expression child node has an `AND` set as its token field.
+
+Finally, each child expression node which is a filter condition needs to be 
+converted to a `FieldColumnPair`. The `column` and `constant` attributes are set
+by looking at at the children of the filter condition expression:
+
+1. One of the expression nodes will have a single child which can be either a 
+   `SYMBOL` token node or a constant token node. Depending on which one it is
+   we set either the `field` or `constant` attribute.
+    1. If it is a `SYMBOL` token node we set the `field` attribute with its 
+       value set to the node's text
+    2. If it is a constant token node we set the `constant` attribute with its 
+       value set to the node's text
+2. The other expression node will have 3 children from which we need to extract
+   the value which will be used set the `column` attribute. 
+   
+   Here we filter all nodes except for the `SYMBOL` token node. The text value
+   of this node is used to set the `column` attribute.
+
+For the example above,
+
+1. The nodes with IDs 13 and 23 contain the filter conditions 
+2. For the node with ID 13,
+
+   We need to set a `constant` attribute since the expression with ID 11
+   has a `NUM_CONST` node as its child
+
+   The other expression node with ID 8 contains the value to set to the
+   `column` attribute. The value is contained in the `SYMBOL` node with ID 7.
+3. Similarly for the node with ID 23,
+
+   We need to set the `field` attribute since the expression with ID 22 has
+   a `SYMBOL` node as its child
+
+   The other expression node with ID 18 contains the value to set to the
+   `column` attribute. The value is contained in the `SYMBOL` node with ID 14.
+
+#### Select Operation
+
+The AST for a select operation is displayed below,
+
+```{r}
+select_code <- "table$a"
+visualize_ast(select_code)
+```
+
+The steps to check if an expression is a select operation are:
+
+1. Get all the child nodes for the expression.
+2. The expression is a select operation if one of the child nodes has **$** as 
+   its token
+
+For the example above,
+
+1. The child nodes have IDs 3, 2, and 4
+2. The child node with ID 2 has a $ as its token, hence showing that the parent
+   expression is a select operation.
+
+From the child nodes we then need to extract the value to set the to 
+`outputColumn` attribute in the `MapValues` node. We can do this by:
+
+1. Finding the child node of the expression whose token is `SYMBOL`
+2. The text field of this node contains the value to set to the `outputColumn`
+   attribute.
+
+For the example above,
+
+1. The `SYMBOL` node we're looking for has ID 4
+2. We use its text field to set the attribute.
+
+#### Filtering & Selecting
+
+As mentioned in the high level specs, filtering and selecting can be done in
+the same line. The following is AST for such an operation:
+
+```{r}
+filter_and_select_code <- "table[table$a == 1, ]$a"
+visualize_ast(filter_and_select_code)
+```
+
+The logic to convert this operation to PMML is a combination of the filter and
+select operation.
+
+When checking if an expression is a filter and select operation we use a 
+combination of the logic for filtering and selecting.
+
+#### `TableLocator`
+
+When setting the `TableLocator` node the function will need to know:
+
+1. If the table is from a `Taxonomy` node. This will require the function to
+   keep track of all the tables converted to a `Taxonomy` node.
+2. If the table is stored as a `DerivedField` node; and
+3. If the operation is within a function, if the table is from an earlier
+   statement within the function.
+
+Depending on the context, the `TableLocator` node should be correctly set.
+
+## Function call
+
+This section will go through the technical specifications for implementing 
+support for expressions that call functions. 
+
+Consider the R code below which calls a function called `test`,
+
+```{r}
+function_call_expression <- "test()"
+```
+
+The corresponding AST is visualized below,
+
+```{r}
+visualize_ast(function_call_expression)
+```
+
+The ID of the root node is **6**.
+
+To identify if an `expr` node contains a function call, the software should 
+look for any child `expr` nodes which contains a child node of type 
+`SYMBOL_FUNCTION_CALL`. Within the symbol function call node, the `text` field 
+contains the name of the called function. For example in the AST above, the 
+`expr` node with ID **3** has the `SYMBOL_FUNCTION_CALL` node to look for. 
+The text field within the `SYMBOL_FUNCTION_CALL` node has the name of the 
+function which is `test`.
+
+## Switch
+
+This section will go through the technical specifications for implementing 
+support for the `switch` statement in R, as defined in the 
+[high level specifications](switch.qmd).
+
+Look at the [Node order](#node-order) section before proceeding.
+
+### Converting to PMML
+
+Consider the switch statement string defined in the variable below,
+
+```{r}
+switch_statement <- "test <- switch(
+    a,
+    '1' = 'a',
+    '2' = 'b',
+    'c'
+)"
+```
+
+The corresponding AST is visualized below,
+
+```{r}
+visualize_ast(switch_statement)
+```
+
+The ID of the root node is **37**.
+
+#### Checking for a switch statement
+
+To check if an `expr` node contains a switch statement the software will need 
+to check if it is a function call where the calling function name is `switch`. 
+This logic is outlined in the [function call](#function-call) section. For the 
+AST above the software would need to find the symbol function call node with 
+ID **1** which is a child of the `expr` node with ID **3**.
+
+#### Finding the requisite nodes
+
+Once the software knows that an `expr` node contains a switch statement, it 
+then needs to start the task of converting it to PMML. To do this it needs to 
+find:
+
+1. The node which contains the name of the variable to switch over. In the code 
+   above this is `a`.
+2. The nodes which contain the equality expressions. In the code above these are 
+   `'1' = 'a'` and `'2' = 'b'`.
+3. The node which contains the default value. In the code above this is the 
+   string `c`.
+
+For the switching variable, the software should look for the second child 
+expression node. The child of this expression node contains the variable `a`. 
+
+For the equality expressions, 
+
+1. The software will first need to look for the all the nodes which represent 
+   the commas in the switch statement. In the AST above these are the nodes with 
+   IDs **6**, **15**, and **24**.
+2. It will then need to look for all the child nodes that come between two 
+   consecutive pairs of comma nodes. In the AST above the pairs would be 
+   **(6,15)** and **(15, 24)**. The nodes that come between these pairs are 
+   **12, 13, 16** and **21, 22, 25** respectively. Keep in the mind the 
+   in-between nodes should be children of the parent `expr` node that contains 
+   the switch statement. For example the nodes with ID **14** and **23** are 
+   not included since they're not a direct child of root node **37**.
+3. The in-between nodes are always a triplet.
+    1. The first node contains the left hand side of the quality. In the AST 
+      above the nodes **12** and **21** contain the left hand side string 
+      constants **1** and **2**.
+    2. The second node contains the equality operator. In the AST above these 
+       are the nodes **13** and **22**,
+    3. The third node contains the right hand side of the operator. This is an 
+       `expr` node and should be parsed as a generic expression. In the AST 
+       above these are the nodes **16** and **25**.
+
+Finally for the default value, the software should look for the first `expr` 
+node after the last comma node. In the AST above the last comma node has ID 
+**24** which makes the `expr` node with ID **33** the one that contains the 
+default value expression. This should be parsed as a generic expression.
+
+With the information contained in the nodes above the software should be able 
+to use the conversion rules outlined in the 
+[high level specifications](switch.qmd)
+
+### No Default Values
+
+The high level specifications specifies that a switch statement that is missing 
+its default value expression, should have it be set to `NA`. Consider the 
+same switch statement above but without its default value of `c`,
+
+```{r}
+no_default_switch_statement <- "switch(
+    a,
+    '1' = 'a',
+    '2' = 'b'
+)"
+```
+
+The AST for it is visualized below,
+
+```{r}
+visualize_ast(no_default_switch_statement)
+```
+
+The steps to identify if a switch statement does not have a default value are:
+
+1. Get all the `EQ_SUB` nodes after the last comma node. 
+2. If any of these nodes is a direct child of the `expr` node for the switch 
+   statement then it does not have a default value. 
+
+For the example in the conversion to PMML section, there's no `EQ_SUB` node 
+after the last comma, hence it has a default value.
+
+For the example in this section, the `EQ_SUB` node with ID **22** comes after 
+the last comma, which is a child of the `expr` node for the switch statement. 
+Hence, it does not have a default value.
+
+### Multi line switch statement
+
+Consider the code below which has a switch statement with a multi-line 
+statement for the case '1'. 
+
+```{r}
+multi_line_switch_statement <- "switch(
+    a,
+    '1' = {
+        a <- 'a'
+    },
+    '2' = 'b' 
+)"
+```
+
+The software should throw an error for the above switch statement since they're 
+not supported. The AST is visualized below
+
+```{r}
+visualize_ast(multi_line_switch_statement)
+```
+
+To identify if a switch statement has a multi-line statement the steps are, 
+
+1. Get the `expr` nodes for the right operator in the equality condition and 
+   the `expr` node for the default value. 
+2. If the children nodes of any of these starts with a **{** and ends with a 
+   **}** then it contains a multi-line switch statement. The software should 
+   throw an error in this case.
+
+In the example here, the `expr` node **27** which represents the equality 
+condition for '1' has the opening and closing curly braces at the start and end.
+The IDs of these nodes are **14** and **25**.
+

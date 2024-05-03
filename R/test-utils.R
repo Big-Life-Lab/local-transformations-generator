@@ -56,13 +56,14 @@ test_utils_run_generate_pmml_test <- function(code,
   current_working_directory <- getwd()
   setwd(code_dir)
   if (!is.null(expected_pmml)) {
-      formatted_expected_pmml <- gsub("[\r\n]", "", expected_pmml)
-      actual_pmml <- pmml::get_pmml_string_from_r_file(
+      formatted_expected_pmml <- prettify_xml(expected_pmml)
+      formatted_actual_pmml <- prettify_xml(pmml::get_pmml_string_from_r_file(
         code_file_path,
         src_file = TRUE,
         log = FALSE
-      )
-      expect_equal(actual_pmml, formatted_expected_pmml)
+      ))
+
+      expect_equal(formatted_actual_pmml, formatted_expected_pmml)
   }
   else if(!is.null(expected_error)) {
       expect_error(
@@ -94,4 +95,8 @@ csv_stringify_data_frame <- function(data_frame) {
     capture.output(write.csv(data_frame, row.names = FALSE)), 
     collapse = "\n"
   ))
+}
+
+prettify_xml <- function(xml_str) {
+    return(XML::saveXML(XML::xmlParse(xml_str)))
 }

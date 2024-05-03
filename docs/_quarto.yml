@@ -8,9 +8,13 @@ website:
     style: docked
     search: true
     contents:
-      - section: Specifications
+      - section: High Level Specifications
         contents:
           - tables.qmd
+          - switch.qmd
+      - section: Technical Specifications
+        contents:
+          - get-pmml-string-from-r-file.qmd
 format:
   html:
     theme: cosmo
